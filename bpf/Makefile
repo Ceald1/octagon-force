@@ -22,7 +22,7 @@ BASE_NAME := $(basename $(notdir $(PROG)))
 TARGET_OBJ  := build/$(BASE_NAME).o
 BPF_FS_PATH := /sys/fs/bpf/$(BASE_NAME)
 
-.PHONY: all clean load unload logs status
+.PHONY: all clean load unload logs status help
 
 all: $(BPF_OBJ)
 
@@ -64,4 +64,28 @@ status:
 clean:
 	rm -rf ./build
 
+help:
+	@echo "Usage: make <command> [PROG=program_name]"
+	@echo ""
+	@echo "Available Commands:"
+	@echo "  help         - Show this menu with command descriptions and usage."
+	@echo "  all          - Compile all discovered .c files into build/*.o bytecode."
+	@echo "  load         - Load and auto-attach a specific BPF program into the kernel."
+	@echo "  unload       - Detach and safely remove a specific BPF program from memory."
+	@echo "  logs         - Stream live 'bpf_printk' output globally from the kernel."
+	@echo "  status       - Show currently active kernel links and loaded modules."
+	@echo "  clean        - Delete the local build/ directory and its binary objects."
+	@echo ""
+	@echo "Argument Options:"
+	@echo "  PROG=name    - Target a specific source file (Defaults to 'hello')."
+	@echo "                 Works with 'load', 'unload', and 'status'."
+	@echo ""
+	@echo "Examples:"
+	@echo "  make                         --> Shows this help screen"
+	@echo "  make all                     --> Compiles everything"
+	@echo "  make load                    --> Loads default build/hello.o"
+	@echo "  make load PROG=packet_drop   --> Compiles & loads build/packet_drop.o"
+	@echo "  make unload PROG=packet_drop --> Safely unloads packet_drop"
+	@echo "  make logs                    --> Streams printk output live"
+	@echo "========================================================================="
 
