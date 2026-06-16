@@ -29,7 +29,7 @@ all: $(BPF_OBJ)
 # Rule to compile any BPF source file into eBPF bytecode
 build/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CLANG) $(CFLAGS) $(BPF_TARGET) -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $@
+	$(CLANG) $(CFLAGS) $(BPF_TARGET) -DDEBUG -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $@
 
 # 1. Load and Dynamic Auto-Attach via ARG/PROG variable
 load:
