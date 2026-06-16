@@ -49,55 +49,76 @@ struct {
   __uint(type, BPF_MAP_TYPE_ARRAY);
   __type(key, int);
   __type(value, struct file_system_enforcer_rules);
-  __uint(max_entries, 256);
+  __uint(max_entries, 100);
 } file_system_enforcer_rules_pin SEC(".maps");
 
-SEC("fmod_ret/__x64_sys_openat")
-int BPF_PROG(file_system_enforcer, const struct pt_regs *regs) {
-  pid_t pid = bpf_get_current_pid_tgid() >> 32;
-  char comm[TASK_COMM_LEN];
-
-  // 1. Get the current task structure safely
+SEC("lsm/file_open")
+int BPF_PROG(file_system_enforcer, struct file *file) {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-  // 2. Safely chain dereference task->real_parent->pid using CO-RE macros
-  pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+  struct nsproxy *nsproxy = BPF_CORE_READ(task, nsproxy);
+  struct pid_namespace *pid_ns = BPF_CORE_READ(nsproxy, pid_ns_for_children);
+  __u32 pid_ns_level = BPF_CORE_READ(pid_ns, level);
 
-  bpf_get_current_comm(&comm, sizeof(comm));
-  __u64 cgid = bpf_get_current_cgroup_id();
-  struct file_system_enforcer_map event;
-  const char *user_filename = (const char *)regs->si;
-
-  if (bpf_probe_read_user_str(event.FileAccessed, sizeof(event.FileAccessed),
-                              user_filename) < 0)
+  if (pid_ns_level == 0)
     return 0;
 
-#pragma unroll
-  for (int i = 0; i < 256; i++) {
-    struct file_system_enforcer_rules *rule;
-    rule = bpf_map_lookup_elem(&file_system_enforcer_rules_pin, &i);
-    if (!rule) {
-      continue;
-    }
+  u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+  pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+  __u64 cgid = bpf_get_current_cgroup_id();
 
-    // check violations
-    if (bpf_strstr(event.FileAccessed, rule->FileName) >= 0) {
-      return 0; // not in there.
-    }
-    const char *ruleName = rule->Name;
-    __builtin_memcmp(event.RuleName, ruleName, 32);
+  struct file_system_enforcer_map event = {};
+
+  int ret =
+      bpf_d_path(&file->f_path, event.FileAccessed, sizeof(event.FileAccessed));
+  if (ret < 0)
+    return 0;
+
+  // early exit if no rules loaded
+  u32 zero = 0;
+  struct file_system_enforcer_rules *first =
+      bpf_map_lookup_elem(&file_system_enforcer_rules_pin, &zero);
+  if (!first || first->FileName[0] == '\0') {
+#ifdef DEBUG_YES
+    bpf_printk("no rules loaded!\n");
+#endif
+    return 0;
+  }
+
+  for (int i = 0; i < 100; i++) {
+    struct file_system_enforcer_rules *rule =
+        bpf_map_lookup_elem(&file_system_enforcer_rules_pin, &i);
+    if (!rule)
+      continue;
+
+    if (rule->FileName[0] == '\0')
+      continue;
+
+    int result = bpf_strstr(event.FileAccessed, rule->FileName);
+#ifdef DEBUG_YES
+    bpf_printk("checking: %s against %s = %d\n", event.FileAccessed,
+               rule->FileName, result);
+#endif
+
+    if (result < 0)
+      continue;
+
+    // match found
+    __builtin_memcpy(event.RuleName, rule->Name, sizeof(event.RuleName));
     event.ContainerID = cgid;
     event.SourcePID = parent_pid;
     event.action = rule->action;
+
     bpf_map_update_elem(&file_system_enforcer_map_pin, &pid, &event, BPF_ANY);
 
-    if (rule->action == false) {
-#ifdef DEBUG_YES
-      bpf_printk("denied access to: %s from %d on container: %d\n",
+    if (!rule->action) {
+      // #ifdef DEBUG_YES
+      bpf_printk("denied access to: %s from %d on container: %llu\n",
                  event.FileAccessed, event.SourcePID, event.ContainerID);
-#endif
-      return -ENOENT;
+      // #endif
+      return -EACCES;
     }
+
     return 0;
   }
 

@@ -29,7 +29,7 @@ all: $(BPF_OBJ)
 # Rule to compile any BPF source file into eBPF bytecode
 build/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CLANG) $(CFLAGS) $(BPF_TARGET) -DDEBUG -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $@
+	$(CLANG) $(CFLAGS) $(BPF_TARGET) -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $@
 
 # 1. Load and Dynamic Auto-Attach via ARG/PROG variable
 load:
@@ -39,14 +39,15 @@ load:
 	fi
 	@echo "Loading and attaching $(TARGET_OBJ) to $(BPF_FS_PATH)..."
 	@if [ -e $(BPF_FS_PATH) ]; then echo "Program '$(BASE_NAME)' already loaded. Run 'make unload PROG=$(BASE_NAME)' first."; exit 1; fi
-	sudo bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach
+	sudo bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach pinmaps /sys/fs/bpf/
 	@echo "Successfully loaded and attached '$(BASE_NAME)'!"
 
 # 2. Unload any specific BPF program via ARG/PROG variable
 unload:
 	@echo "Detaching and unloading BPF program pinned at $(BPF_FS_PATH)..."
-	@if [ ! -e $(BPF_FS_PATH) ]; then echo "No active BPF object found pinned at $(BPF_FS_PATH)"; exit 1; fi
-	sudo rm -f $(BPF_FS_PATH)
+	sudo rm -f $(BPF_FS_PATH) 2> /dev/null
+	sudo rm -f $(BPF_FS_PATH)_enforcer_map_pin 2> /dev/null
+	sudo rm -f $(BPF_FS_PATH)_enforcer_rules_pin 2> /dev/null
 	@echo "Successfully unloaded '$(BASE_NAME)'."
 
 # 3. Stream printk tracing logs

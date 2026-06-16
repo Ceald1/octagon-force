@@ -1,0 +1,5 @@
+rules:
+  - rule:
+    name: test
+    action: "deny"
+    filename: "/etc/shadow"
