@@ -3,4 +3,4 @@ rules:
     name: test
     action: "deny"
     filename: "/etc/shadow"
-    message: "file: {{Name}} was accessed by {{ContainerID}}"
+    message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"

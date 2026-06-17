@@ -1,11 +1,9 @@
 package file_system_monitor
 
 import (
-	// "bytes"
-	// "encoding/binary"
-	// "encoding/json"
-	// "fmt"
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -140,22 +138,25 @@ func Run() {
 				log.Warn("delete failed:", err)
 			}
 			output.Action = action[violation.Action]
-			output.FileName = string(violation.FileAccessed[:])
+			output.FileName = cString(violation.FileAccessed[:])
 			output.Name = cString(violation.RuleName[:])
 			output.ContainerID = violation.ContainerID
 			tpl, _ := pongo2.FromString(RULEMAP[output.Name].Message)
 			output.Message, err = tpl.Execute(pongo2.Context{
-				"Name":        output.FileName,
+				"FileName":    output.FileName,
 				"RuleName":    output.Name,
 				"SourcePID":   violation.SourcePID,
 				"ContainerID": output.ContainerID,
 				"Action":      map[bool]string{true: "allow", false: "deny"}[violation.Action],
 			})
-			// output.Message, err = tpl.Execute(pongo2.Context{"Name": output.FileName, "ContainerID": violation.ContainerID})
 			if err != nil {
 				log.Warn("error making template: ", err)
+			}
+			bOut, err := json.Marshal(output)
+			if err != nil {
+				log.Warn("error marshalling json")
 			} else {
-				log.Info(output.Message)
+				fmt.Println(string(bOut))
 			}
 
 		}
@@ -163,7 +164,6 @@ func Run() {
 			log.Warn("iteration error:", err)
 		}
 
-		log.Info("sleeping 1 second...\n")
 		time.Sleep(1 * time.Second)
 
 	}

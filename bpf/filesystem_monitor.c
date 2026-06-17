@@ -1,9 +1,7 @@
-/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
-
 #define BPF_NO_GLOBAL_DATA
 #include "vmlinux.h"
 
-#include <bpf/bpf_core_read.h> // <-- CRUCIAL: Required for BPF_CORE_READ macro
+#include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <linux/errno.h>
@@ -32,7 +30,7 @@ struct file_system_enforcer_map {
 
 struct proc_key {
   __u32 pid;
-  __u64 start_time; // or exec_id
+  __u64 start_time;
 };
 
 struct {
@@ -41,13 +39,6 @@ struct {
   __type(value, struct file_system_enforcer_map);
   __uint(max_entries, 1048576);
 } octagon_force_filesystem_monitor_enforcer_map_pin SEC(".maps");
-
-// struct {
-//   __uint(type, BPF_MAP_TYPE_ARRAY);
-//   __type(key, pid_t);
-//   __type(value, struct file_system_enforcer_map);
-//   __uint(max_entries, 1048576);
-// } octagon_force_filesystem_monitor_enforcer_map_pin SEC(".maps");
 
 struct file_system_enforcer_rules {
   char Name[32]; // all good rules need names!
@@ -116,10 +107,6 @@ int BPF_PROG(file_system_enforcer, struct file *file) {
     if (result < 0)
       continue;
 
-    // match found
-    //__builtin_memcpy(event.RuleName, rule->Name, sizeof(event.RuleName));
-    // event.RuleName[31] = 0;
-
     __builtin_memset(&event, 0, sizeof(event));
 
     bpf_probe_read_kernel_str(event.FileAccessed, sizeof(event.FileAccessed),
@@ -140,12 +127,12 @@ int BPF_PROG(file_system_enforcer, struct file *file) {
                         &key, &event, BPF_ANY);
 
     if (!rule->action) {
-      // #ifdef DEBUG_YES
+#ifdef DEBUG_YES
       bpf_printk(
           "denied access to: %s from %d on container: %llu\n with rule: %s \n",
           event.FileAccessed, event.SourcePID, event.ContainerID,
           event.RuleName);
-      // #endif
+#endif
       return -EACCES;
     }
 
