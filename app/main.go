@@ -11,4 +11,5 @@ func main() {
 	LOG.Info("starting....")
 	fileSystemMonitorRules := file_system_monitor.ParseRules()
 	file_system_monitor.UpdateRules(fileSystemMonitorRules)
+	file_system_monitor.Run()
 }

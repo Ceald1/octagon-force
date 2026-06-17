@@ -5,22 +5,29 @@ import (
 	// "encoding/binary"
 	// "encoding/json"
 	// "fmt"
+	"bytes"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/charmbracelet/log"
+	"github.com/flosch/pongo2/v7"
 
 	"github.com/cilium/ebpf"
 	"gopkg.in/yaml.v3"
 )
 
-type FileSystemEnforcerMap struct {
-	FileAccessed [32]byte
-	SourcePID    int32
-	ContainerID  uint64
-	Action       bool
-	RuleName     [32]byte
+type Octagon_Force_FileSystemEnforcerMap struct {
+	FileAccessed [32]byte // 0
+	SourcePID    uint32   // 32
+	_            uint32   // 36
+	ContainerID  uint64   // 40
+	Action       bool     // 48
+	RuleName     [32]byte // 49 — no padding, char has align 1
+	_            [7]byte  // 81 — tail padding to reach 88
 }
 
-type FileSystemEnforcerRule struct {
+type Octagon_Force_FileSystemEnforcerRule struct {
 	Name     [32]byte
 	FileName [32]byte
 	Action   bool
@@ -30,24 +37,42 @@ type Rule struct {
 	Name     string `yaml:"name"`
 	FileName string `yaml:"filename"`
 	Action   string `yaml:"action"`
+	Message  string `yaml:"message"`
+}
+
+type proc_key struct {
+	Pid        uint32
+	_          uint32 // IMPORTANT padding
+	Start_time uint64
+}
+
+type Log struct {
+	Name        string `json:"name"`
+	FileName    string `json:"filename"`
+	Action      string `json:"action"`
+	Message     string `json:"message"`
+	ContainerID uint64 `json:"containerID"`
 }
 
 type RuleFile struct {
 	Rules []Rule `yaml:"rules"` // array of rule files
 }
 
+var RULEMAP map[string]Rule = make(map[string]Rule)
+
 func UpdateRules(rules []Rule) {
-	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/file_system_enforcer_rules_pin", nil)
+	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/octagon_force/filesystem_monitor/octagon_force_filesystem_monitor_enforcer_rules_pin", nil)
 	if err != nil {
 		panic(err)
 	}
 	defer prog.Close()
 
 	for i := 0; i < 100; i++ {
-		var newRule FileSystemEnforcerRule
+		var newRule Octagon_Force_FileSystemEnforcerRule
 
 		if i < len(rules) {
 			rule := rules[i]
+			RULEMAP[rule.Name] = rule
 			copy(newRule.FileName[:], rule.FileName)
 			copy(newRule.Name[:], rule.Name)
 			if strings.ToLower(rule.Action) == "deny" {
@@ -76,14 +101,71 @@ func ParseRules() (rules []Rule) {
 	if err != nil {
 		panic(err)
 	}
+	// check templates too
+	for _, rule := range ruleFile.Rules {
+		_, err = pongo2.FromString(rule.Message)
+		if err != nil {
+			panic(err)
+		}
+	}
 	rules = ruleFile.Rules
 
 	return
 }
+func cString(b []byte) string {
+	// Find the null terminator
+	n := bytes.IndexByte(b, 0)
+	if n == -1 {
+		// No null terminator found, use entire array
+		n = len(b)
+	}
+	return string(b[:n])
+}
 
-//func Run() {
-//	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/", nil)
-//	if err != nil {
-//		return
-//	}
-//}
+func Run() {
+	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/octagon_force/filesystem_monitor/octagon_force_filesystem_monitor_enforcer_map_pin", nil)
+	if err != nil {
+		panic(err)
+	}
+	defer prog.Close()
+	for {
+		var violation Octagon_Force_FileSystemEnforcerMap
+		var output Log
+		action := map[bool]string{true: "allow", false: "deny"}
+		it := prog.Iterate()
+		var key proc_key
+		for it.Next(&key, &violation) {
+			err := prog.Delete(&key)
+			if err != nil {
+				log.Warn("delete failed:", err)
+			}
+			output.Action = action[violation.Action]
+			output.FileName = string(violation.FileAccessed[:])
+			output.Name = cString(violation.RuleName[:])
+			output.ContainerID = violation.ContainerID
+			tpl, _ := pongo2.FromString(RULEMAP[output.Name].Message)
+			output.Message, err = tpl.Execute(pongo2.Context{
+				"Name":        output.FileName,
+				"RuleName":    output.Name,
+				"SourcePID":   violation.SourcePID,
+				"ContainerID": output.ContainerID,
+				"Action":      map[bool]string{true: "allow", false: "deny"}[violation.Action],
+			})
+			// output.Message, err = tpl.Execute(pongo2.Context{"Name": output.FileName, "ContainerID": violation.ContainerID})
+			if err != nil {
+				log.Warn("error making template: ", err)
+			} else {
+				log.Info(output.Message)
+			}
+
+		}
+		if err := it.Err(); err != nil {
+			log.Warn("iteration error:", err)
+		}
+
+		log.Info("sleeping 1 second...\n")
+		time.Sleep(1 * time.Second)
+
+	}
+
+}

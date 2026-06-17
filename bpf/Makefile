@@ -20,7 +20,9 @@ BASE_NAME := $(basename $(notdir $(PROG)))
 
 # Dynamic Path Specifications based on the variable argument
 TARGET_OBJ  := build/$(BASE_NAME).o
-BPF_FS_PATH := /sys/fs/bpf/$(BASE_NAME)
+BPF_DIR  := /sys/fs/bpf/octagon_force/$(BASE_NAME)
+BPF_FS_PATH := /sys/fs/bpf/octagon_force/$(BASE_NAME)
+PROG_PIN := $(BPF_DIR)/prog
 
 .PHONY: all clean load unload logs status help
 
@@ -33,22 +35,54 @@ build/%.o: %.c
 
 # 1. Load and Dynamic Auto-Attach via ARG/PROG variable
 load:
-	@if [ ! -f $(TARGET_OBJ) ]; then \
-		echo "Error: $(TARGET_OBJ) does not exist. Compiling it now..."; \
-		make $(TARGET_OBJ) || exit 1; \
+	@if [ ! -f "$(TARGET_OBJ)" ]; then \
+		echo "Building $(TARGET_OBJ)..."; \
+		$(MAKE) "$(TARGET_OBJ)" || exit 1; \
 	fi
-	@echo "Loading and attaching $(TARGET_OBJ) to $(BPF_FS_PATH)..."
-	@if [ -e $(BPF_FS_PATH) ]; then echo "Program '$(BASE_NAME)' already loaded. Run 'make unload PROG=$(BASE_NAME)' first."; exit 1; fi
-	sudo bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach pinmaps /sys/fs/bpf/
-	@echo "Successfully loaded and attached '$(BASE_NAME)'!"
+
+	@if sudo test -e "$(PROG_PIN)"; then \
+		echo "Program '$(BASE_NAME)' already loaded."; \
+		echo "Run: make unload PROG=$(BASE_NAME)"; \
+		exit 1; \
+	fi
+
+	@echo "Loading $(TARGET_OBJ)..."
+
+	sudo mkdir -p "$(BPF_DIR)"
+
+	sudo bpftool prog load \
+		"$(TARGET_OBJ)" \
+		"$(PROG_PIN)" \
+		autoattach \
+		pinmaps "$(BPF_DIR)"
+
+	@echo "Successfully loaded '$(BASE_NAME)'"
+#load:
+#	sudo mkdir -p $(BPF_FS_PATH)
+#	@if [ ! -f $(TARGET_OBJ) ]; then \
+#		echo "Error: $(TARGET_OBJ) does not exist. Compiling it now..."; \
+#		make $(TARGET_OBJ) || exit 1; \
+#	fi
+#	@echo "Loading and attaching $(TARGET_OBJ) to $(BPF_FS_PATH)..."
+#	sudo bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach pinmaps $(BPF_FS_PATH)
+#	@echo "Successfully loaded and attached '$(BASE_NAME)'!"
 
 # 2. Unload any specific BPF program via ARG/PROG variable
+
 unload:
-	@echo "Detaching and unloading BPF program pinned at $(BPF_FS_PATH)..."
-	sudo rm -f $(BPF_FS_PATH) 2> /dev/null
-	sudo rm -f $(BPF_FS_PATH)_enforcer_map_pin 2> /dev/null
-	sudo rm -f $(BPF_FS_PATH)_enforcer_rules_pin 2> /dev/null
-	@echo "Successfully unloaded '$(BASE_NAME)'."
+	@echo "Unloading '$(BASE_NAME)'..."
+
+	@if sudo test -d "$(BPF_DIR)"; then \
+		sudo rm -rf "$(BPF_DIR)"; \
+		echo "Removed $(BPF_DIR)"; \
+	else \
+		echo "Program not loaded."; \
+	fi
+#unload:
+#	@echo "Detaching and unloading BPF program pinned at $(BPF_FS_PATH)..."
+#	sudo rm -rf $(BPF_FS_PATH)
+#
+#	@echo "Successfully unloaded '$(BASE_NAME)'."
 
 # 3. Stream printk tracing logs
 logs:
