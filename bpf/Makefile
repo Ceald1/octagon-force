@@ -6,8 +6,10 @@ CFLAGS ?= -O2 -g -Wall -std=gnu17
 BPF_TARGET := -target bpf
 
 # Directories and Discovery
+#BPF_SRC := $(wildcard *.c) $(wildcard */*.c)
+#BPF_OBJ := $(patsubst %.c, build/%.o, $(BPF_SRC))
 BPF_SRC := $(wildcard *.c) $(wildcard */*.c)
-BPF_OBJ := $(patsubst %.c, build/%.o, $(BPF_SRC))
+BPF_OBJ := $(addprefix build/, $(notdir $(BPF_SRC:.c=.o)))
 
 # Basic Linux architecture detection
 ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
@@ -24,15 +26,18 @@ BPF_DIR  := /sys/fs/bpf/octagon_force/$(BASE_NAME)
 BPF_FS_PATH := /sys/fs/bpf/octagon_force/$(BASE_NAME)
 PROG_PIN := $(BPF_DIR)/prog
 
+vpath %.c . $(sort $(dir $(wildcard */*.c)))
+
 .PHONY: all clean load unload logs status help
 
 all: $(BPF_OBJ)
 
 # Rule to compile any BPF source file into eBPF bytecode
-build/%.o: %.c
-	mkdir -p $(dir $@)
+build/%.o: %.c | build
 	$(CLANG) $(CFLAGS) $(BPF_TARGET) -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $@
 
+build:
+	mkdir -p ./build
 # 1. Load and Dynamic Auto-Attach via ARG/PROG variable
 load:
 	@if [ ! -f "$(TARGET_OBJ)" ]; then \
