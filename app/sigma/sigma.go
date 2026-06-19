@@ -2,6 +2,7 @@ package sigma
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -92,7 +93,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 	case "sys_enter_write":
 		e = map[string]string{
 			"Image": "sys_enter_write",
-			"Data":  cString(Sevent.Data[:]),
+			"Data":  base64.RawStdEncoding.EncodeToString(Sevent.Data[:]),
 		}
 	case "check_security":
 		e = map[string]string{
