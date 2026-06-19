@@ -5,5 +5,6 @@ description: curl was ran!!
 detection:
   selection:
     Data|endswith: "/curl"
+    Image|contains: "check_security"
   condition: selection
 level: high
