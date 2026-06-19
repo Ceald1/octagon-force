@@ -61,7 +61,8 @@ var RULEMAP map[string]Rule = make(map[string]Rule)
 func UpdateRules(rules []Rule) {
 	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/octagon_force/filesystem_monitor/octagon_force_filesystem_monitor_enforcer_rules_pin", nil)
 	if err != nil {
-		panic(err)
+		log.Warn("failed to update filesystem_monitor rules.")
+		return
 	}
 	defer prog.Close()
 
@@ -123,7 +124,8 @@ func cString(b []byte) string {
 func Run() {
 	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/octagon_force/filesystem_monitor/octagon_force_filesystem_monitor_enforcer_map_pin", nil)
 	if err != nil {
-		panic(err)
+		log.Warn("could not load filesystem_monitor.")
+		return
 	}
 	defer prog.Close()
 	for {

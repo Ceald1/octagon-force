@@ -1,6 +1,6 @@
 #include "sigma.h"
 
-SEC("lsm/bprm_committed_creds")
+SEC("lsm/bprm_check_security")
 int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
 
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
@@ -23,6 +23,8 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
   const char *filename = bprm->filename;
   bpf_probe_read_kernel_str(event.data, 128, filename);
 
+  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
+                            "check_security");
   //  void *arg_start = (void *)BPF_CORE_READ(bprm, mm, arg_start);
   //  void *arg_end = (void *)BPF_CORE_READ(bprm, mm, arg_end);
   //  unsigned long arg_length = arg_end - arg_start;

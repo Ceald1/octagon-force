@@ -1,0 +1,9 @@
+title: Curl ran
+id: a1b2c3d4-1111-2222-3333-444455556666
+status: experimental
+description: curl was ran!!
+detection:
+  selection:
+    Data|endswith: "/curl"
+  condition: selection
+level: high

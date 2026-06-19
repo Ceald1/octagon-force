@@ -25,6 +25,7 @@ struct sigma_event {
   pid_t SourcePID;
   __u64 ContainerID;
   char data[256];
+  char hooked[16];
 };
 
 struct proc_key {
