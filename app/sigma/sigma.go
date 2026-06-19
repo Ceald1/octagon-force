@@ -7,9 +7,8 @@ import (
 	"io"
 
 	"os"
-	// "strings"
+
 	"time"
-	//
 
 	"context"
 
@@ -55,7 +54,6 @@ type Log struct {
 	Message     string `json:"message"`
 	ContainerID uint64 `json:"containerID"`
 }
-type event map[string]interface{}
 
 func GetRules() (rules []s.Rule, err error) {
 	data, err := os.ReadFile("./rules/sigma.yaml")
