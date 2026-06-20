@@ -1,7 +1,7 @@
 #include "sigma.h"
 
-SEC("lsm/bprm_check_security")
-int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
+SEC("kprobe/__sys_sendto")
+int BPF_KPROBE(sigma_tc, int fd, const char *buf, size_t len) {
 
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
@@ -19,29 +19,20 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
   __u64 cgid = bpf_get_current_cgroup_id();
 
   struct sigma_event event;
-  __builtin_memset(event.data, 0, sizeof(event.data));
-  const char *filename = bprm->filename;
-  bpf_probe_read_kernel_str(event.data, 128, filename);
-
-  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
-                            "check_security");
-  //  void *arg_start = (void *)BPF_CORE_READ(bprm, mm, arg_start);
-  //  void *arg_end = (void *)BPF_CORE_READ(bprm, mm, arg_end);
-  //  unsigned long arg_length = arg_end - arg_start;
-  //  if (arg_length > 0) {
-  //    arg_length = arg_length < 128 ? arg_length : 128;
-  //    bpf_probe_read_kernel(event.data + 128, arg_length, arg_start);
-  //  }
+  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked), "network");
   event.ContainerID = cgid;
   event.SourcePID = parent_pid;
   struct proc_key key = {
       .pid = pid,
       .start_time = start_time,
   };
+
+  bpf_probe_read_kernel_str(event.data, sizeof(event.data), buf);
+
   bpf_map_update_elem(&octagon_force_sigma_event_map_pin, &key, &event,
                       BPF_ANY);
 #ifdef DEBUG_YES
-  bpf_printk("%s\n", event.data);
+  bpf_printk("called send to");
 #endif
   return 0;
 }
