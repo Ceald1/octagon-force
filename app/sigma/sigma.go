@@ -100,6 +100,11 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 			"Image": "check_security",
 			"Data":  cString(Sevent.Data[:]),
 		}
+	case "network":
+		e = map[string]string{
+			"Image": "network",
+			"Data":  base64.RawStdEncoding.EncodeToString(Sevent.Data[:]),
+		}
 	default:
 		return
 	}
@@ -130,6 +135,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 
 const exec_sigma = "/sys/fs/bpf/octagon_force/sigma_exec/octagon_force_sigma_event_map_pin"
 const write_sigma = "/sys/fs/bpf/octagon_force/sigma_write/octagon_force_sigma_event_map_pin"
+const network_sigma = "/sys/fs/bpf/octagon_force/sigma_network/octagon_force_sigma_event_map_pin"
 
 func Exec_Run(rules []s.Rule) {
 	prog, err := ebpf.LoadPinnedMap(exec_sigma, nil)

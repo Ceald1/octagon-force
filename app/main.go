@@ -23,6 +23,7 @@ func main() {
 	}
 	go sigma.Exec_Run(sigmaRules)
 	go sigma.Write_Run(sigmaRules)
+	go sigma.Network_Run(sigmaRules)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
