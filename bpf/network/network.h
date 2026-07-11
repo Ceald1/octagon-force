@@ -25,8 +25,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 struct network_event {
   pid_t SourcePID;
   __u64 ContainerID;
-  char Host[256];
-  bool action;
+  char eventName[30];
 };
 
 struct proc_key {

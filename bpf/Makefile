@@ -55,7 +55,7 @@ load:
 
 	sudo mkdir -p "$(BPF_DIR)"
 
-	sudo bpftool prog load \
+	sudo bpftool prog loadall \
 		"$(TARGET_OBJ)" \
 		"$(PROG_PIN)" \
 		autoattach \
