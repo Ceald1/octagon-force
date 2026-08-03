@@ -1,5 +1,3 @@
-//go:build mips || mips64 || ppc64 || s390x
-
 package network
 
 import (
@@ -66,7 +64,7 @@ func Run() {
 			}
 			out.EventName = event.GetEventName()
 			out.SourceID = event.ContainerID
-			log.Info(fmt.Sprintf("container: %u performed: %s \n", out.SourceID, out.EventName))
+			log.Info(fmt.Sprintf("container: %d performed: %s \n", out.SourceID, out.EventName))
 
 		}
 
