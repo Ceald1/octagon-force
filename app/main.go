@@ -8,6 +8,7 @@ import (
 
 	// bpf maps and functions
 	"github.com/Ceald1/octagon-force/app/file_system_monitor"
+	n "github.com/Ceald1/octagon-force/app/network"
 	"github.com/Ceald1/octagon-force/app/sigma"
 )
 
@@ -23,7 +24,8 @@ func main() {
 	}
 	go sigma.Exec_Run(sigmaRules)
 	go sigma.Write_Run(sigmaRules)
-	go sigma.Network_Run(sigmaRules)
+	//go sigma.Network_Run(sigmaRules)
+	go n.Run()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
