@@ -68,6 +68,18 @@ int BPF_PROG(octagon_force_tcp_state, struct sock *sk, int newstate) {
   key.start_time = start_time;
   e.ContainerID = cgid;
   e.SourcePID = parent_pid;
+  e.family = BPF_CORE_READ(sk, __sk_common.skc_family);
+  e.dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
+
+  if (e.family == 2) { // AF_INET (IPv4)
+    e.daddr_v4 = BPF_CORE_READ(sk, __sk_common.skc_daddr);
+    e.saddr_v4 = BPF_CORE_READ(sk, __sk_common.skc_rcv_saddr);
+  } else if (e.family == 10) { // AF_INET6 (IPv6)
+    BPF_CORE_READ_INTO(&e.daddr_v6, sk,
+                       __sk_common.skc_v6_daddr.in6_u.u6_addr8);
+    BPF_CORE_READ_INTO(&e.saddr_v6, sk,
+                       __sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8);
+  }
   switch (newstate) {
   case TCP_ESTABLISHED:
     bpf_probe_read_kernel_str(e.eventName, sizeof(e.eventName), "established");
@@ -108,9 +120,12 @@ int BPF_PROG(octagon_force_tcp_state, struct sock *sk, int newstate) {
   return 0;
 }
 
+#define ETH_P_IP 0x0800
+#define ETH_P_IPV6 0x86DD
+
 SEC("kprobe/__dev_queue_xmit")
-int BPF_KPROBE(octagon_force_packets_sent, struct sk_buff *sk) {
-  if (!sk) {
+int BPF_KPROBE(octagon_force_packets_sent, struct sk_buff *skb) {
+  if (!skb) {
     return 0;
   }
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
@@ -125,6 +140,23 @@ int BPF_KPROBE(octagon_force_packets_sent, struct sk_buff *sk) {
   pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
   __u64 cgid = bpf_get_current_cgroup_id();
   struct network_event e = {};
+  unsigned char *head = BPF_CORE_READ(skb, head);
+  u16 network_header = BPF_CORE_READ(skb, network_header);
+  u16 protocol =
+      BPF_CORE_READ(skb, protocol); // Ethernet protocol (in network byte order)
+
+  // Check layer 3 protocol (bpf_ntohs handles network byte order)
+  if (protocol == bpf_htons(ETH_P_IP)) {
+    struct iphdr *iph = (struct iphdr *)(head + network_header);
+    e.family = 2; // AF_INET
+    e.daddr_v4 = BPF_CORE_READ(iph, daddr);
+    e.saddr_v4 = BPF_CORE_READ(iph, saddr);
+  } else if (protocol == bpf_htons(ETH_P_IPV6)) {
+    struct ipv6hdr *ip6h = (struct ipv6hdr *)(head + network_header);
+    e.family = 10; // AF_INET6
+    BPF_CORE_READ_INTO(&e.daddr_v6, ip6h, daddr.in6_u.u6_addr8);
+    BPF_CORE_READ_INTO(&e.saddr_v6, ip6h, saddr.in6_u.u6_addr8);
+  }
   // #ifdef DEBUG_YES
   //   bpf_printk("network sent packet!");
   // #endif

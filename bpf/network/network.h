@@ -23,10 +23,17 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 // send events to app
 struct network_event {
-  pid_t SourcePID;
-  __u64 ContainerID;
-  char eventName[30];
-};
+  __u64 ContainerID; /*  8 bytes (offset 0)  */
+  pid_t SourcePID;   /*  4 bytes (offset 8)  */
+  __u16 family;      /*  2 bytes (offset 12) */
+  __be16 dport;      /*  2 bytes (offset 14) */
+  __be32 saddr_v4;
+  __be32 daddr_v4;            /*  4 bytes (offset 16) */
+  unsigned char daddr_v6[16]; /* 16 bytes (offset 20) */
+  unsigned char saddr_v6[16];
+  char eventName[24]; /* 24 bytes (offset 36) - Extended to 24 to pad naturally
+                       */
+}; /* Total C size = 60 bytes */
 
 struct proc_key {
   __u32 pid;

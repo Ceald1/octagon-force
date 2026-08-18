@@ -24,7 +24,6 @@ func main() {
 	}
 	go sigma.Exec_Run(sigmaRules)
 	go sigma.Write_Run(sigmaRules)
-	//go sigma.Network_Run(sigmaRules)
 	go n.Run()
 
 	sigChan := make(chan os.Signal, 1)
