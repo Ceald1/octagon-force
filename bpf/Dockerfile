@@ -22,5 +22,5 @@ COPY . .
 
 
 
-RUN make
+RUN ls && make
 
