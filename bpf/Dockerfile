@@ -1,12 +1,12 @@
-FROM quay.io/cilium/bpftool:latest AS bpftool-provider
+FROM ghcr.io/libbpf/bpftool:latest AS bpftool-provider
 
-# Stage 2: Your actual container
+# Stage 2: Build environment
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Copy bpftool from Stage 1 into /usr/local/bin
-COPY --from=bpftool-provider /usr/local/bin/bpftool /usr/local/bin/bpftool
+# Copy bpftool executable from Stage 1
+COPY --from=bpftool-provider /usr/bin/bpftool /usr/local/bin/bpftool
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
