@@ -19,11 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Docker Buildx (enables advanced build features)
+      # Step 2: Convert repository name to lowercase
+      - name: Lowercase repository name
+        run: |
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      # Step 3: Set up Docker Buildx (enables advanced build features)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: Log in to the GitHub Container Registry
+      # Step 4: Log in to the GitHub Container Registry
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -31,7 +36,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 4: Build the image and push it to GHCR
+      # Step 5: Build the image and push it to GHCR
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -40,4 +45,4 @@ jobs:
           push: true
           # Tags the image with 'latest' and lowercase repository name
           tags: |
-            ghcr.io/${{ github.repository }}-bpf:latest
+            ghcr.io/${{ env.REPO_LOWER }}-bpf:latest
