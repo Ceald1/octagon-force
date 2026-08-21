@@ -2,7 +2,9 @@ FROM golang:1.26
 
 WORKDIR /work
 
-
+# Copy module definition files
+COPY go.mod go.sum ./
+RUN go mod download
 
 # Copy the rest of the application code inside ./app
 COPY . .
@@ -14,3 +16,5 @@ RUN go build -o /app .
 ENV LOKI_HOST="loki-headless.monitoring.svc.cluster.local"
 
 CMD ["/app"]
+
+
