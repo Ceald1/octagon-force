@@ -28,5 +28,5 @@ COPY . .
 
 RUN make
 
-CMD ["make", "loadall"]
+CMD ["/bin/bash", "run.sh"]
 
