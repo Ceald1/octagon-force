@@ -7,5 +7,5 @@ COPY . /work
 
 
 
-make
+RUN make
 
