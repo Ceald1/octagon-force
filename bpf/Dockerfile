@@ -4,6 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 
 
+
 RUN apt update && \
     apt install -y --no-install-recommends \
         clang \
@@ -11,7 +12,7 @@ RUN apt update && \
         libelf-dev \
         build-essential \
         linux-tools-common \
-        bpftool \
+        linux-tools-generic \
         make && \
     rm -rf /var/lib/apt/lists/*
 
