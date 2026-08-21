@@ -4,8 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    apt install -y --no-install-recommends \
         clang \
         llvm \
         libelf-dev \
