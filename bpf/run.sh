@@ -2,6 +2,7 @@
 
 make
 
+make unloadall &> /dev/null 
 
 make loadall
 
