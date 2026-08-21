@@ -47,16 +47,23 @@ spec:
         - image: ghcr.io/ceald1/octagon-force-app:latest
           securityContext:
             privileged: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           name: octagon-force-app
           env:
             - name: LOKI_HOST
-              value: "loki-headless.monitoring.svc.cluster.local"
-          resources: {}
+              value: "loki-headless.monitoring.svc.cluster.local:3100"
           volumeMounts:
             # 1. BPF File System
             - name: sys-fs-bpf
               mountPath: /sys/fs/bpf
-              mountPropagation: Bidirectional
+              #mountPropagation: Bidirectional
+              mountPropagation: HostToContainer
             # 2. Host kernel debug/tracing system
             - name: sys-kernel-debug
               mountPath: /sys/kernel/debug
@@ -69,6 +76,7 @@ spec:
           hostPath:
             path: /sys/fs/bpf
             type: DirectoryOrCreate
+
         - name: sys-kernel-debug
           hostPath:
             path: /sys/kernel/debug

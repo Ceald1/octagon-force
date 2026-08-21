@@ -19,10 +19,17 @@ spec:
           image: ghcr.io/ceald1/octagon-force-bpf:latest
           securityContext:
             privileged: true
+          #          resources:
+          #            requests:
+          #              cpu: "200m"
+          #              memory: "500Mi"
+          #            limits:
+          #              cpu: "1000m"
+          #              memory: "1Gi"
           volumeMounts:
             - name: sys-fs-bpf
               mountPath: /sys/fs/bpf
-              mountPropagation: Bidirectional
+              mountPropagation: HostToContainer
             - name: sys-kernel-tracing
               mountPath: /sys/kernel/tracing
             - name: sys-kernel-debug
@@ -32,6 +39,7 @@ spec:
           hostPath:
             path: /sys/fs/bpf
             type: DirectoryOrCreate
+
         - name: sys-kernel-tracing
           hostPath:
             path: /sys/kernel/tracing
