@@ -23,5 +23,7 @@ COPY . .
 
 
 
-RUN ls && make
+RUN make
+
+CMD ["make", "loadall"]
 
