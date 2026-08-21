@@ -18,9 +18,9 @@ RUN apt update && \
 
 WORKDIR /work
 
-COPY . /work
+COPY . .
 
 
 
-RUN cd /work && make
+RUN make
 
