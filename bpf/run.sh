@@ -4,7 +4,7 @@ make
 
 set +e
 
-make unloadall
+make unloadall 2> /dev/null
 sleep 1
 
 make loadall
