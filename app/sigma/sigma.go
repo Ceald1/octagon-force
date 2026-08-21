@@ -3,7 +3,6 @@ package sigma
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -15,6 +14,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/Ceald1/octagon-force/app/outputs"
+	"github.com/Ceald1/octagon-force/app/outputs/utils"
 	s "github.com/bradleyjkemp/sigma-go"
 	se "github.com/bradleyjkemp/sigma-go/evaluator"
 	"github.com/charmbracelet/log"
@@ -116,17 +117,25 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 	for _, result := range results {
 
 		if result.Match {
-			output := Log{
-				Name:        result.Title,
-				Level:       result.Level,
-				Message:     result.Description,
-				ContainerID: Sevent.ContainerID,
+			output := utils.SigmaEvent{
+				Name:         result.Title,
+				Level:        result.Level,
+				Message:      result.Description,
+				ContainerID:  fmt.Sprintf("%d", Sevent.ContainerID),
+				ContainerPID: fmt.Sprintf("%d", Sevent.SourcePID),
 			}
-			outB, err := json.Marshal(output)
+			outLog := utils.Output[utils.SigmaEvent]{
+				Data: output,
+			}
+			podName, err := outLog.GetPod()
 			if err != nil {
-				log.Warn("error marshalling json!")
+				log.Warn(fmt.Sprintf("cannot get pod name for: %d", Sevent.SourcePID))
 			}
-			fmt.Println(string(outB))
+			outLog.Source = podName
+			err = outputs.NewLokiPayload(outLog)
+			if err != nil {
+				log.Warn(err.Error())
+			}
 		}
 	}
 

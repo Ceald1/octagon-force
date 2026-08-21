@@ -2,12 +2,13 @@ package file_system_monitor
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/Ceald1/octagon-force/app/outputs"
+	"github.com/Ceald1/octagon-force/app/outputs/utils"
 	"github.com/charmbracelet/log"
 	"github.com/flosch/pongo2/v7"
 
@@ -130,7 +131,6 @@ func Run() {
 	defer prog.Close()
 	for {
 		var violation Octagon_Force_FileSystemEnforcerMap
-		var output Log
 		action := map[bool]string{true: "allow", false: "deny"}
 		it := prog.Iterate()
 		var key proc_key
@@ -139,27 +139,43 @@ func Run() {
 			if err != nil {
 				log.Warn("delete failed:", err)
 			}
-			output.Action = action[violation.Action]
-			output.FileName = cString(violation.FileAccessed[:])
-			output.Name = cString(violation.RuleName[:])
-			output.ContainerID = violation.ContainerID
-			tpl, _ := pongo2.FromString(RULEMAP[output.Name].Message)
-			output.Message, err = tpl.Execute(pongo2.Context{
-				"FileName":    output.FileName,
-				"RuleName":    output.Name,
+			outFileSystem := utils.FileSystemEvent{}
+			outFileSystem.Action = action[violation.Action]
+			outFileSystem.FileName = cString(violation.FileAccessed[:])
+			outFileSystem.Name = cString(violation.RuleName[:])
+			outFileSystem.ContainerID = fmt.Sprintf("%d", violation.ContainerID)
+			outFileSystem.ContainerPID = fmt.Sprintf("%d", violation.SourcePID)
+			tpl, _ := pongo2.FromString(RULEMAP[outFileSystem.Name].Message)
+			outFileSystem.Message, err = tpl.Execute(pongo2.Context{
+				"FileName":    outFileSystem.FileName,
+				"RuleName":    outFileSystem.Name,
 				"SourcePID":   violation.SourcePID,
-				"ContainerID": output.ContainerID,
+				"ContainerID": outFileSystem.ContainerID,
 				"Action":      map[bool]string{true: "allow", false: "deny"}[violation.Action],
 			})
 			if err != nil {
 				log.Warn("error making template: ", err)
 			}
-			bOut, err := json.Marshal(output)
-			if err != nil {
-				log.Warn("error marshalling json")
-			} else {
-				fmt.Println(string(bOut))
+
+			outLog := utils.Output[utils.FileSystemEvent]{
+				Data: outFileSystem,
 			}
+			podName, err := outLog.GetPod()
+			if err != nil {
+				log.Warn(fmt.Sprintf("cannot get pod name for pid %d", violation.SourcePID))
+			}
+			outLog.Source = podName
+			err = outputs.NewLokiPayload(outLog)
+			if err != nil {
+				log.Warn(err)
+			}
+
+			// bOut, err := json.Marshal(output)
+			//if err != nil {
+			//	log.Warn("error marshalling json")
+			//} else {
+			//	fmt.Println(string(bOut))
+			//}
 
 		}
 		if err := it.Err(); err != nil {

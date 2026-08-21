@@ -16,7 +16,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
 INCLUDES := -I/usr/include -I/usr/include/$(shell uname -m)-linux-gnu
 
 # Dynamic Program Extraction Target (Default fallback if PROG is empty)
-PROG ?= hello
+# PROG ?= hello
 # Strip any trailing .c or .o from the argument to get the clean base name
 BASE_NAME := $(basename $(notdir $(PROG)))
 

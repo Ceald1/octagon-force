@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"structs"
 
+	"github.com/Ceald1/octagon-force/app/outputs"
+	"github.com/Ceald1/octagon-force/app/outputs/utils"
 	"github.com/charmbracelet/log"
 	"github.com/cilium/ebpf"
 	"net"
@@ -68,11 +70,11 @@ type networkProcKey struct {
 	_         [4]byte
 	StartTime uint64
 }
-type Output struct {
-	SourceID  uint64
-	EventName string
-}
 
+//	type Output struct {
+//		SourceID  uint64
+//		EventName string
+//	}
 func Run() {
 	prog, err := ebpf.LoadPinnedMap("/sys/fs/bpf/octagon_force/network/octagon_force_network_event_map_pin", nil)
 	if err != nil {
@@ -84,16 +86,39 @@ func Run() {
 	for {
 		var event NetworkEvent
 		var key networkProcKey
-		var out Output
+		var outNetwork utils.NetworkEvent
 		it := prog.Iterate()
 		for it.Next(&key, &event) {
 			err := prog.Delete(&key)
 			if err != nil {
 				log.Warn("delete failed: ", err.Error())
 			}
+<<<<<<< HEAD
 			out.EventName = event.GetEventName()
 			out.SourceID = event.ContainerID
 			log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
+=======
+			outNetwork.ContainerID = fmt.Sprintf("%d", event.ContainerID)
+			outNetwork.ContainerPID = fmt.Sprintf("%d", event.SourcePID)
+			outNetwork.Source = event.SAddr().String()
+			outNetwork.Destination = event.DAddr().String()
+			outNetwork.EventType = event.GetEventName()
+			outLog := utils.Output[utils.NetworkEvent]{
+				Data: outNetwork,
+			}
+			podname, err := outLog.GetPod()
+			if err != nil {
+				log.Warn(err.Error())
+			} else {
+				outLog.Source = podname
+			}
+			err = outputs.NewLokiPayload(outLog)
+			if err != nil {
+				log.Warn(err.Error())
+			}
+
+			// log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
+>>>>>>> 0bd7299 (now should be functional and log to loki)
 
 		}
 
