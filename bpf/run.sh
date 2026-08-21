@@ -2,7 +2,6 @@
 
 make
 
-set +e
 
 # Ensure tracefs is mounted inside the container
 if [ ! -d "/sys/kernel/tracing/events" ]; then
@@ -26,6 +25,9 @@ cleanup() {
     exit 0
 }
 
-trap cleanup SIGINT
+trap cleanup SIGINT SIGTERM
 echo "loaded bpfs, waiting.."
-wait
+while true; do
+    sleep 2 &
+    wait $!
+done

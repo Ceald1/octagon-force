@@ -1,28 +1,25 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: octagon-force-app-svc
+  name: octagon-force-svc
   namespace: default
 ---
-# 2. ClusterRole (Permissions required by the monitor)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: octagon-force-role
 rules:
-  # Permissions to watch pods and nodes across the cluster
   - apiGroups: [""]
     resources: ["pods", "nodes", "namespaces"]
     verbs: ["get", "list", "watch"]
 ---
-# 3. ClusterRoleBinding (Binds the SA to the ClusterRole)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ebpf-monitor-binding
+  name: octagon-force-binding
 subjects:
   - kind: ServiceAccount
-    name: octagon-force-app-svc
+    name: octagon-force-svc
     namespace: default
 roleRef:
   kind: ClusterRole
@@ -44,6 +41,7 @@ spec:
       labels:
         app: octagon-force-app
     spec:
+      serviceAccountName: octagon-force-svc
       hostPID: true
       containers:
         - image: ghcr.io/ceald1/octagon-force-app:latest
