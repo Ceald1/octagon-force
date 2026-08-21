@@ -1,0 +1,247 @@
+package outputs
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+type EventData interface {
+	SigmaEvent | NetworkEvent | FileSystemEvent
+}
+
+type Output[T EventData] struct {
+	Source string
+	Data   T
+}
+
+type NetworkEvent struct {
+	Source       string `json:"source"`
+	Destination  string `json:"destination"`
+	EventType    string `json:"event_type"`
+	ContainerID  string `json:"containerID"`
+	ContainerPID string `json:"containerPID"`
+}
+
+type SigmaEvent struct {
+	Name         string `json:"name"`
+	Level        string `json:"action"`
+	Message      string `json:"message"`
+	ContainerID  string `json:"containerID"`
+	ContainerPID string `json:"containerPID"`
+}
+
+type FileSystemEvent struct {
+	Name         string `json:"name"`
+	FileName     string `json:"filename"`
+	Action       string `json:"action"`
+	Message      string `json:"message"`
+	ContainerID  string `json:"containerID"`
+	ContainerPID string `json:"containerPID"`
+}
+
+type ContainerPIDProvider interface {
+	GetContainerPID() string
+}
+
+// Support both pod_UUID and podUUID / hyphenated cgroup formats
+var podUIDRegex = regexp.MustCompile(`pod[_-]?([a-f0-9]{8}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{12})`)
+
+// PodResolver manages the informer cache and UID lookup
+type PodResolver struct {
+	informer cache.SharedIndexInformer
+	client   kubernetes.Interface
+}
+
+var (
+	globalResolver *PodResolver
+	resolverOnce   sync.Once
+)
+
+// InitResolver initializes the client-go informer factory once
+func InitResolver(ctx context.Context, client kubernetes.Interface) (*PodResolver, error) {
+	var err error
+	resolverOnce.Do(func() {
+		if client == nil {
+			var config *rest.Config
+			config, err = rest.InClusterConfig()
+			if err != nil {
+				kubeconfig := os.Getenv("KUBECONFIG")
+				config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+				if err != nil {
+					return
+				}
+			}
+			client, err = kubernetes.NewForConfig(config)
+			if err != nil {
+				return
+			}
+		}
+
+		factory := informers.NewSharedInformerFactory(client, 10*time.Minute)
+		podInformer := factory.Core().V1().Pods().Informer()
+
+		// Register custom UID indexer for O(1) lookups
+		err = podInformer.AddIndexers(cache.Indexers{
+			"byUID": func(obj interface{}) ([]string, error) {
+				pod, ok := obj.(*corev1.Pod)
+				if !ok {
+					return nil, nil
+				}
+				return []string{string(pod.UID)}, nil
+			},
+		})
+		if err != nil {
+			return
+		}
+
+		factory.Start(ctx.Done())
+		if !cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced) {
+			err = fmt.Errorf("failed to sync pod informer cache")
+			return
+		}
+
+		globalResolver = &PodResolver{
+			informer: podInformer,
+			client:   client,
+		}
+	})
+
+	return globalResolver, err
+}
+
+func (o Output[T]) GetPod() (string, error) {
+	var hostPID string
+
+	switch v := any(o.Data).(type) {
+	case NetworkEvent:
+		hostPID = v.ContainerPID
+	case *NetworkEvent:
+		if v != nil {
+			hostPID = v.ContainerPID
+		}
+	case SigmaEvent:
+		hostPID = v.ContainerPID
+	case *SigmaEvent:
+		if v != nil {
+			hostPID = v.ContainerPID
+		}
+	case FileSystemEvent:
+		hostPID = v.ContainerPID
+	case *FileSystemEvent:
+		if v != nil {
+			hostPID = v.ContainerPID
+		}
+	case ContainerPIDProvider:
+		hostPID = v.GetContainerPID()
+	default:
+		return "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
+	}
+
+	if hostPID == "" || hostPID == "0" {
+		return "", fmt.Errorf("invalid or missing container PID in event")
+	}
+
+	uid, err := GetPodUIDFromCgroupID(hostPID)
+	if err != nil {
+		return "", err
+	}
+
+	// Fallback to direct API list search if informer isn't initialized (e.g. in standalone unit tests)
+	if globalResolver == nil {
+		return resolvePodDirectAPI(uid)
+	}
+
+	// O(1) lookup via Informer cache index
+	objs, err := globalResolver.informer.GetIndexer().ByIndex("byUID", uid)
+	if err != nil {
+		return "", err
+	}
+	if len(objs) == 0 {
+		return "", fmt.Errorf("no pod found matching UID %s", uid)
+	}
+
+	pod := objs[0].(*corev1.Pod)
+	return pod.Name, nil
+}
+
+// Fallback direct list search (safe against "field label not supported" errors)
+func resolvePodDirectAPI(uid string) (string, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		kubeconfig := os.Getenv("KUBECONFIG")
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", err
+	}
+
+	podList, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	for _, pod := range podList.Items {
+		if string(pod.UID) == uid {
+			return pod.Name, nil
+		}
+	}
+
+	return "", fmt.Errorf("no pod found matching UID %s", uid)
+}
+
+func GetPodUIDFromCgroupID(containerPID string) (string, error) {
+	// Respect PROC_ROOT env var if mounted in a pod (e.g., /host/proc)
+	procRoot := os.Getenv("PROC_ROOT")
+	if procRoot == "" {
+		procRoot = "/proc"
+	}
+
+	cGroupPath := filepath.Join(procRoot, containerPID, "cgroup")
+
+	file, err := os.Open(cGroupPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open cgroup for PID %s at %s: %w", containerPID, cGroupPath, err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) < 3 {
+			continue
+		}
+
+		if matches := podUIDRegex.FindStringSubmatch(parts[2]); len(matches) > 1 {
+			// Convert systemd's escaped underscores back to standard UUID hyphens
+			podUID := strings.ReplaceAll(matches[1], "_", "-")
+			return podUID, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading cgroup for PID %s: %w", containerPID, err)
+	}
+
+	return "", fmt.Errorf("process %s is not running inside a Kubernetes Pod", containerPID)
+}

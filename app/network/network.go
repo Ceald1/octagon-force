@@ -93,7 +93,7 @@ func Run() {
 			}
 			out.EventName = event.GetEventName()
 			out.SourceID = event.ContainerID
-			log.Info(fmt.Sprintf("container: %d performed: %s from %s to: %s\n", out.SourceID, out.EventName, event.SAddr().String(), event.DAddr().String()))
+			log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
 
 		}
 
