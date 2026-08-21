@@ -45,7 +45,7 @@ load:
 		$(MAKE) "$(TARGET_OBJ)" || exit 1; \
 	fi
 
-	@if sudo test -e "$(PROG_PIN)"; then \
+	@if test -e "$(PROG_PIN)"; then \
 		echo "Program '$(BASE_NAME)' already loaded."; \
 		echo "Run: make unload PROG=$(BASE_NAME)"; \
 		exit 1; \
@@ -53,9 +53,9 @@ load:
 
 	@echo "Loading $(TARGET_OBJ)..."
 
-	sudo mkdir -p "$(BPF_DIR)"
+	mkdir -p "$(BPF_DIR)"
 
-	sudo bpftool prog loadall \
+	bpftool prog loadall \
 		"$(TARGET_OBJ)" \
 		"$(PROG_PIN)" \
 		autoattach \
@@ -70,13 +70,13 @@ loadall:
 	done
 
 #load:
-#	sudo mkdir -p $(BPF_FS_PATH)
+#	mkdir -p $(BPF_FS_PATH)
 #	@if [ ! -f $(TARGET_OBJ) ]; then \
 #		echo "Error: $(TARGET_OBJ) does not exist. Compiling it now..."; \
 #		make $(TARGET_OBJ) || exit 1; \
 #	fi
 #	@echo "Loading and attaching $(TARGET_OBJ) to $(BPF_FS_PATH)..."
-#	sudo bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach pinmaps $(BPF_FS_PATH)
+#	bpftool prog load $(TARGET_OBJ) $(BPF_FS_PATH) autoattach pinmaps $(BPF_FS_PATH)
 #	@echo "Successfully loaded and attached '$(BASE_NAME)'!"
 
 # 2. Unload any specific BPF program via ARG/PROG variable
@@ -84,8 +84,8 @@ loadall:
 unload:
 	@echo "Unloading '$(BASE_NAME)'..."
 
-	@if sudo test -d "$(BPF_DIR)"; then \
-		sudo rm -rf "$(BPF_DIR)"; \
+	@if test -d "$(BPF_DIR)"; then \
+		rm -rf "$(BPF_DIR)"; \
 		echo "Removed $(BPF_DIR)"; \
 	else \
 		echo "Program not loaded."; \
@@ -98,21 +98,21 @@ unloadall:
 	done
 #unload:
 #	@echo "Detaching and unloading BPF program pinned at $(BPF_FS_PATH)..."
-#	sudo rm -rf $(BPF_FS_PATH)
+#	rm -rf $(BPF_FS_PATH)
 #
 #	@echo "Successfully unloaded '$(BASE_NAME)'."
 
 # 3. Stream printk tracing logs
 logs:
 	@echo "Streaming BPF printk trace logs (Press Ctrl+C to stop)..."
-	sudo bpftool prog tracelog
+	bpftool prog tracelog
 
 # 4. Show state matching our targeted program name variable
 status:
 	@echo "=== Active BPF Links ==="
-	sudo bpftool link list
+	bpftool link list
 	@echo "\n=== Running Program Instance ==="
-	sudo bpftool prog show name $(BASE_NAME) || sudo bpftool prog show
+	bpftool prog show name $(BASE_NAME) || sudo bpftool prog show
 
 clean:
 	rm -rf ./build

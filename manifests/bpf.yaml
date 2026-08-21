@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
+  name: octagon-force-bpf
   labels:
     app: octagon-force-bpf
-  name: octagon-force-bpf
 spec:
   selector:
     matchLabels:
@@ -13,16 +13,63 @@ spec:
       labels:
         app: octagon-force-bpf
     spec:
+      # Pod-level security configuration
+      securityContext:
+        runAsUser: 0 # UID 0 corresponds to root
+        runAsGroup: 0 # GID 0 corresponds to root
+        runAsNonRoot: false # Explicitly allow root execution
       containers:
-        - image: ghcr.io/ceald1/octagon-force-bpf:latest
+        - name: octagon-force-bpf
+          image: ghcr.io/ceald1/octagon-force-bpf:latest
           securityContext:
-            privileged: true
-          name: octagon-force-bpf
+            privileged: true # Keeps full root capabilities for eBPF operations
           volumeMounts:
             - name: sys-fs-bpf
               mountPath: /sys/fs/bpf
+              mountPropagation: Bidirectional
+            - name: sys-kernel-debug
+              mountPath: /sys/kernel/debug
+            - name: sys-kernel-tracing
+              mountPath: /sys/kernel/tracing
       volumes:
         - name: sys-fs-bpf
           hostPath:
             path: /sys/fs/bpf
             type: DirectoryOrCreate
+        - name: sys-kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+        - name: sys-kernel-tracing
+          hostPath:
+            path: /sys/kernel/tracing
+            type: DirectoryOrCreate
+
+#apiVersion: apps/v1
+#kind: DaemonSet
+#metadata:
+#  labels:
+#    app: octagon-force-bpf
+#  name: octagon-force-bpf
+#spec:
+#  selector:
+#    matchLabels:
+#      app: octagon-force-bpf
+#  template:
+#    metadata:
+#      labels:
+#        app: octagon-force-bpf
+#    spec:
+#      containers:
+#        - image: ghcr.io/ceald1/octagon-force-bpf:latest
+#          securityContext:
+#            privileged: true
+#          name: octagon-force-bpf
+#          volumeMounts:
+#            - name: sys-fs-bpf
+#              mountPath: /sys/fs/bpf
+#      volumes:
+#        - name: sys-fs-bpf
+#          hostPath:
+#            path: /sys/fs/bpf
+#            type: DirectoryOrCreate
