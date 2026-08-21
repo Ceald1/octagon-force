@@ -4,6 +4,15 @@ make
 
 set +e
 
+# Ensure tracefs is mounted inside the container
+if [ ! -d "/sys/kernel/tracing/events" ]; then
+    mount -t tracefs nodev /sys/kernel/tracing 2>/dev/null || true
+fi
+
+if [ ! -d "/sys/kernel/debug/tracing" ]; then
+    mount -t debugfs nodev /sys/kernel/debug 2>/dev/null || true
+fi
+
 make unloadall 2> /dev/null
 sleep 1
 
