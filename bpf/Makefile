@@ -62,6 +62,13 @@ load:
 		pinmaps "$(BPF_DIR)"
 
 	@echo "Successfully loaded '$(BASE_NAME)'"
+loadall:
+	@for obj in build/*.o; do \
+		[ -f "$$obj" ] || continue; \
+		prog=$$(basename "$$obj" .o); \
+		$(MAKE) --no-print-directory load PROG="$$prog" || exit 1; \
+	done
+
 #load:
 #	sudo mkdir -p $(BPF_FS_PATH)
 #	@if [ ! -f $(TARGET_OBJ) ]; then \
@@ -83,6 +90,12 @@ unload:
 	else \
 		echo "Program not loaded."; \
 	fi
+unloadall:
+	@for obj in build/*.o; do \
+		[ -f "$$obj" ] || continue; \
+		prog=$$(basename "$$obj" .o); \
+		$(MAKE) --no-print-directory unload PROG="$$prog" || exit 1; \
+	done
 #unload:
 #	@echo "Detaching and unloading BPF program pinned at $(BPF_FS_PATH)..."
 #	sudo rm -rf $(BPF_FS_PATH)
