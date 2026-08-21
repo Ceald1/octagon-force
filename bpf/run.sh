@@ -2,7 +2,10 @@
 
 make
 
-make unloadall &> /dev/null 
+set +e
+
+make unloadall
+sleep 1
 
 make loadall
 
