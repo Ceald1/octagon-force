@@ -93,11 +93,7 @@ func Run() {
 			if err != nil {
 				log.Warn("delete failed: ", err.Error())
 			}
-<<<<<<< HEAD
-			out.EventName = event.GetEventName()
-			out.SourceID = event.ContainerID
-			log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
-=======
+
 			outNetwork.ContainerID = fmt.Sprintf("%d", event.ContainerID)
 			outNetwork.ContainerPID = fmt.Sprintf("%d", event.SourcePID)
 			outNetwork.Source = event.SAddr().String()
@@ -118,7 +114,6 @@ func Run() {
 			}
 
 			// log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
->>>>>>> 0bd7299 (now should be functional and log to loki)
 
 		}
 
