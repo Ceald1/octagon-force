@@ -14,7 +14,7 @@ RUN apt update && \
         build-essential \
         linux-tools-common \
         linux-tools-generic \
-        make && \
+        make sudo && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work

@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: octagon-force-app-svc
+  namespace: default
+---
+# 2. ClusterRole (Permissions required by the monitor)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: octagon-force-role
+rules:
+  # Permissions to watch pods and nodes across the cluster
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+# 3. ClusterRoleBinding (Binds the SA to the ClusterRole)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ebpf-monitor-binding
+subjects:
+  - kind: ServiceAccount
+    name: octagon-force-app-svc
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: octagon-force-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: octagon-force-app
+  name: octagon-force-app
+spec:
+  selector:
+    matchLabels:
+      app: octagon-force-app
+  template:
+    metadata:
+      labels:
+        app: octagon-force-app
+    spec:
+      hostPID: true
+      containers:
+        - image: ghcr.io/ceald1/octagon-force-app:latest
+          securityContext:
+            privileged: true
+          name: octagon-force-app
+          env:
+            - name: LOKI_HOST
+              value: "loki-headless.monitoring.svc.cluster.local"
+          resources: {}
+          volumeMounts:
+            # 1. BPF File System
+            - name: sys-fs-bpf
+              mountPath: /sys/fs/bpf
+              mountPropagation: Bidirectional
+            # 2. Host kernel debug/tracing system
+            - name: sys-kernel-debug
+              mountPath: /sys/kernel/debug
+            # 3. Host Process filesystem (for monitoring process activity)
+            - name: host-proc
+              mountPath: /host/proc
+              readOnly: true
+      volumes:
+        - name: sys-fs-bpf
+          hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
+        - name: sys-kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: octagon-force-bpf
+  name: octagon-force-bpf
+spec:
+  selector:
+    matchLabels:
+      app: octagon-force-bpf
+  template:
+    metadata:
+      labels:
+        app: octagon-force-bpf
+    spec:
+      containers:
+        - image: ghcr.io/ceald1/octagon-force-bpf:latest
+          securityContext:
+            privileged: true
+          name: octagon-force-bpf
+          volumeMounts:
+            - name: sys-fs-bpf
+              mountPath: /sys/fs/bpf
+      volumes:
+        - name: sys-fs-bpf
+          hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
