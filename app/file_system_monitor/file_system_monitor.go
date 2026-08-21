@@ -163,6 +163,7 @@ func Run() {
 			podName, err := outLog.GetPod()
 			if err != nil {
 				log.Warn(fmt.Sprintf("cannot get pod name for pid %d", violation.SourcePID))
+				podName = outFileSystem.ContainerPID
 			}
 			outLog.Source = podName
 			err = outputs.NewLokiPayload(outLog)
