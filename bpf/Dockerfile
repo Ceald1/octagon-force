@@ -22,5 +22,5 @@ COPY . /work
 
 
 
-RUN make
+RUN cd /work && make
 
