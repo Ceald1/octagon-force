@@ -10,6 +10,7 @@ RUN apt update && \
         clang \
         llvm \
         libelf-dev \
+        libbpf-dev \
         build-essential \
         linux-tools-common \
         linux-tools-generic \
