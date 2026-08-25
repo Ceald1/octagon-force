@@ -105,6 +105,7 @@ func Run() {
 			podname, err := outLog.GetPod()
 			if err != nil {
 				log.Warn(err.Error())
+				continue // ignore pod
 			} else {
 				outLog.Source = podname
 			}
