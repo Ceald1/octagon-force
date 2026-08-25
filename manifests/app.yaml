@@ -41,6 +41,29 @@ spec:
       labels:
         app: octagon-force-app
     spec:
+      initContainers:
+        - name: wait-for-bpf
+          image: busybox:latest
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: sys-fs-bpf
+              mountPath: /sys/fs/bpf
+              readOnly: true
+              mountPropagation: HostToContainer # Crucial for seeing live host-side BPF mounts
+          command:
+            - sh
+            - -c
+            - |
+              TARGET_DIR="/sys/fs/bpf/octagon_force"
+
+              # Wait for directory to exist, then check if item count is > 1
+              until [ -d "$TARGET_DIR" ] && [ $(ls -A "$TARGET_DIR" 2>/dev/null | wc -l) -gt 1 ]; do
+                 echo "waiting for bpfs in $TARGET_DIR..."
+                 sleep 2
+              done
+              echo "BPF maps detected! Starting container..."
+
       serviceAccountName: octagon-force-svc
       hostPID: true
       containers:

@@ -1,6 +1,9 @@
 rules:
   - rule:
-    name: test
+    name: shadow deny
     action: "deny"
     filename: "/etc/shadow"
     message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
+  - rule:
+    name: passwd deny
+    action: "deny"
