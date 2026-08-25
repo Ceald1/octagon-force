@@ -6,4 +6,6 @@ rules:
     message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
   - rule:
     name: passwd deny
-    action: "deny"
+    action: "alert"
+    filename: "/etc/passwd"
+    message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
