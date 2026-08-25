@@ -164,6 +164,15 @@ func Run() {
 			if err != nil {
 				log.Warn(fmt.Sprintf("cannot get pod name for pid %d", violation.SourcePID))
 				podName = outFileSystem.ContainerPID
+			} else {
+				outLog.Data.ContainerID = podName
+				outLog.Data.Message, _ = tpl.Execute(pongo2.Context{
+					"FileName":    outFileSystem.FileName,
+					"RuleName":    outFileSystem.Name,
+					"SourcePID":   violation.SourcePID,
+					"ContainerID": podName,
+					"Action":      map[bool]string{true: "allow", false: "deny"}[violation.Action],
+				})
 			}
 			outLog.Source = podName
 			err = outputs.NewLokiPayload(outLog)
