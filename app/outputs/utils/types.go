@@ -6,7 +6,6 @@ type NetworkEvent struct {
 	EventType    string `json:"event_type"`
 	ContainerID  string `json:"containerID"`
 	ContainerPID string `json:"containerPID"`
-	EventName    string `json:"event_name"`
 }
 
 type SigmaEvent struct {
@@ -15,7 +14,6 @@ type SigmaEvent struct {
 	Message      string `json:"message"`
 	ContainerID  string `json:"containerID"`
 	ContainerPID string `json:"containerPID"`
-	EventName    string `json:"event_name"`
 }
 
 type FileSystemEvent struct {
@@ -25,5 +23,4 @@ type FileSystemEvent struct {
 	Message      string `json:"message"`
 	ContainerID  string `json:"containerID"`
 	ContainerPID string `json:"containerPID"`
-	EventName    string `json:"event_name"`
 }
