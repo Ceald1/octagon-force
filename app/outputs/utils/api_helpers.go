@@ -25,8 +25,9 @@ type EventData interface {
 }
 
 type Output[T EventData] struct {
-	Source string
-	Data   T
+	Source    string
+	Data      T
+	EventName string
 }
 
 type ContainerPIDProvider interface {
@@ -105,26 +106,20 @@ func (o Output[T]) GetPod() (string, error) {
 	switch v := any(o.Data).(type) {
 	case NetworkEvent:
 		hostPID = v.ContainerPID
-		v.EventName = "network"
 	case *NetworkEvent:
 		if v != nil {
-			v.EventName = "network"
 			hostPID = v.ContainerPID
 		}
 	case SigmaEvent:
-		v.EventName = "sigma"
 		hostPID = v.ContainerPID
 	case *SigmaEvent:
 		if v != nil {
-			v.EventName = "sigma"
 			hostPID = v.ContainerPID
 		}
 	case FileSystemEvent:
-		v.EventName = "file_system"
 		hostPID = v.ContainerPID
 	case *FileSystemEvent:
 		if v != nil {
-			v.EventName = "file_system"
 			hostPID = v.ContainerPID
 		}
 	case ContainerPIDProvider:

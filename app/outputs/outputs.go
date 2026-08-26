@@ -19,6 +19,17 @@ const LokiOut string = "Loki"
 const LokiContentType = "application/json"
 
 func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
+
+	switch any(octagonData.Data).(type) {
+	case utils.NetworkEvent:
+		octagonData.EventName = "network"
+	case utils.SigmaEvent:
+		octagonData.EventName = "sigma"
+
+	case utils.FileSystemEvent:
+		octagonData.EventName = "file_system"
+
+	}
 	jsBytes, err := json.Marshal(octagonData)
 	if err != nil {
 		log.Error("failed to marshal octagon data", "err", err)
@@ -27,7 +38,6 @@ func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 
 	// Loki expects nanoseconds formatted as a string representation of an integer
 	timestampStr := strconv.FormatInt(time.Now().UnixNano(), 10)
-
 	result := map[string]any{
 		"streams": []map[string]any{
 			{
