@@ -100,7 +100,7 @@ func InitResolver(ctx context.Context, client kubernetes.Interface) (*PodResolve
 	return globalResolver, err
 }
 
-func (o Output[T]) GetPod() (string, error) {
+func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	var hostPID string
 
 	switch v := any(o.Data).(type) {
@@ -125,16 +125,16 @@ func (o Output[T]) GetPod() (string, error) {
 	case ContainerPIDProvider:
 		hostPID = v.GetContainerPID()
 	default:
-		return "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
+		return "", "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
 	}
 
 	if hostPID == "" || hostPID == "0" {
-		return "", fmt.Errorf("invalid or missing container PID in event")
+		return "", "", fmt.Errorf("invalid or missing container PID in event")
 	}
 
 	uid, err := GetPodUIDFromCgroupID(hostPID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// Fallback to direct API list search if informer isn't initialized (e.g. in standalone unit tests)
@@ -145,44 +145,44 @@ func (o Output[T]) GetPod() (string, error) {
 	// O(1) lookup via Informer cache index
 	objs, err := globalResolver.informer.GetIndexer().ByIndex("byUID", uid)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if len(objs) == 0 {
-		return "", fmt.Errorf("no pod found matching UID %s", uid)
+		return "", "", fmt.Errorf("no pod found matching UID %s", uid)
 	}
 
 	pod := objs[0].(*corev1.Pod)
-	return pod.Name, nil
+	return pod.Name, pod.Namespace, nil
 }
 
 // Fallback direct list search (safe against "field label not supported" errors)
-func resolvePodDirectAPI(uid string) (string, error) {
+func resolvePodDirectAPI(uid string) (podName string, podNS string, err error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		kubeconfig := os.Getenv("KUBECONFIG")
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	podList, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	for _, pod := range podList.Items {
 		if string(pod.UID) == uid {
-			return pod.Name, nil
+			return pod.Name, pod.Namespace, nil
 		}
 	}
 
-	return "", fmt.Errorf("no pod found matching UID %s", uid)
+	return "", "", fmt.Errorf("no pod found matching UID %s", uid)
 }
 
 func GetPodUIDFromCgroupID(containerPID string) (string, error) {

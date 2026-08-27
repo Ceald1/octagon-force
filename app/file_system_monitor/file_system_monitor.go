@@ -160,7 +160,7 @@ func Run() {
 			outLog := utils.Output[utils.FileSystemEvent]{
 				Data: outFileSystem,
 			}
-			podName, err := outLog.GetPod()
+			podName, ns, err := outLog.GetPod()
 			if err != nil {
 				log.Warn(fmt.Sprintf("cannot get pod name for pid %d", violation.SourcePID))
 				podName = outFileSystem.ContainerPID
@@ -175,6 +175,7 @@ func Run() {
 				})
 			}
 			outLog.Source = podName
+			outLog.Data.Namespace = ns
 			err = outputs.NewLokiPayload(outLog)
 			if err != nil {
 				log.Warn(err)

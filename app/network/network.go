@@ -102,12 +102,13 @@ func Run() {
 			outLog := utils.Output[utils.NetworkEvent]{
 				Data: outNetwork,
 			}
-			podname, err := outLog.GetPod()
+			podname, ns, err := outLog.GetPod()
 			if err != nil {
 				log.Warn(err.Error())
 				continue // ignore pod
 			} else {
 				outLog.Source = podname
+				outLog.Data.Namespace = ns
 			}
 			err = outputs.NewLokiPayload(outLog)
 			if err != nil {

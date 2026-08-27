@@ -127,11 +127,12 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 			outLog := utils.Output[utils.SigmaEvent]{
 				Data: output,
 			}
-			podName, err := outLog.GetPod()
+			podName, ns, err := outLog.GetPod()
 			if err != nil {
 				log.Warn(fmt.Sprintf("cannot get pod name for: %d", Sevent.SourcePID))
 			}
 			outLog.Source = podName
+			outLog.Data.Namespace = ns
 			err = outputs.NewLokiPayload(outLog)
 			if err != nil {
 				log.Warn(err.Error())
