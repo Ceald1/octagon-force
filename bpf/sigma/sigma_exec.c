@@ -1,7 +1,7 @@
 #include "sigma.h"
 
-SEC("lsm/bprm_check_security")
-int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
+SEC("tracepoint/syscalls/sys_enter_execve")
+int BPF_PROG(sigma_sched_process_exec, struct trace_event_raw_sys_enter *ctx1) {
 
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
@@ -20,24 +20,20 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
 
   struct sigma_event event;
   __builtin_memset(event.data, 0, sizeof(event.data));
-  const char *filename = bprm->filename;
-  bpf_probe_read_kernel_str(event.data, 128, filename);
+  const char *filename = (const char *)ctx1->args[0];
+  bpf_probe_read_user_str(event.data, 128, filename);
 
   bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
-                            "check_security");
-  //  void *arg_start = (void *)BPF_CORE_READ(bprm, mm, arg_start);
-  //  void *arg_end = (void *)BPF_CORE_READ(bprm, mm, arg_end);
-  //  unsigned long arg_length = arg_end - arg_start;
-  //  if (arg_length > 0) {
-  //    arg_length = arg_length < 128 ? arg_length : 128;
-  //    bpf_probe_read_kernel(event.data + 128, arg_length, arg_start);
-  //  }
+                            "sys_enter_execve");
+
   event.ContainerID = cgid;
   event.SourcePID = parent_pid;
   struct proc_key key = {
       .pid = pid,
       .start_time = start_time,
   };
+  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
+                            "sys_enter_execve");
   bpf_map_update_elem(&octagon_force_sigma_event_map_pin, &key, &event,
                       BPF_ANY);
 #ifdef DEBUG_YES
