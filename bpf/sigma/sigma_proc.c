@@ -48,9 +48,15 @@ int BPF_PROG(sigma_clone, struct task_struct *parent,
     bpf_probe_read_user_str(event.data, sizeof(cmdline), (void *)arg_start);
 
     bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked), "fork");
-
+    //  void *arg_start = (void *)BPF_CORE_READ(bprm, mm, arg_start);
+    //  void *arg_end = (void *)BPF_CORE_READ(bprm, mm, arg_end);
+    //  unsigned long arg_length = arg_end - arg_start;
+    //  if (arg_length > 0) {
+    //    arg_length = arg_length < 128 ? arg_length : 128;
+    //    bpf_probe_read_kernel(event.data + 128, arg_length, arg_start);
+    //  }
     event.ContainerID = cgid;
-    event.SourcePID = pid;
+    event.SourcePID = parent_pid;
     struct proc_key key = {
         .pid = pid,
         .start_time = start_time,
