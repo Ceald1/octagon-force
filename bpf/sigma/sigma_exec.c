@@ -1,7 +1,7 @@
 #include "sigma.h"
 
-SEC("tracepoint/syscalls/sys_enter_execve")
-int BPF_PROG(sigma_sched_process_exec, struct trace_event_raw_sys_enter *ctx1) {
+SEC("tp/syscalls/sys_enter_execve")
+int sigma_sched_process_exec(struct trace_event_raw_sys_enter *ctx1) {
 
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
