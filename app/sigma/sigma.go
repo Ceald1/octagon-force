@@ -145,6 +145,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 
 const exec_sigma = "/sys/fs/bpf/octagon_force/sigma_exec/octagon_force_sigma_event_map_pin"
 const write_sigma = "/sys/fs/bpf/octagon_force/sigma_write/octagon_force_sigma_event_map_pin"
+const fork_sigma = "/sys/fs/bpf/octagon_force/sigma_proc/octagon_force_sigma_event_map_pin"
 
 func Exec_Run(rules []s.Rule) {
 	prog, err := ebpf.LoadPinnedMap(exec_sigma, nil)
@@ -176,6 +177,33 @@ func Exec_Run(rules []s.Rule) {
 
 func Write_Run(rules []s.Rule) {
 	prog, err := ebpf.LoadPinnedMap(write_sigma, nil)
+	if err != nil {
+		log.Warn("could not load sigma_write.")
+		return
+	}
+	defer prog.Close()
+	for {
+		var Sevent Sigma_event
+		it := prog.Iterate()
+		var key proc_key
+		for it.Next(&key, &Sevent) {
+			err := prog.Delete(&key)
+			if err != nil {
+				log.Warn("delete failed:", err)
+			}
+			go func() {
+				err = ParseRules(rules, Sevent)
+				if err != nil {
+					log.Warn(err)
+				}
+			}()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func Fork_Run(rules []s.Rule) {
+	prog, err := ebpf.LoadPinnedMap(fork_sigma, nil)
 	if err != nil {
 		log.Warn("could not load sigma_write.")
 		return
