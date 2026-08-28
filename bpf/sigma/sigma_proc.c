@@ -45,7 +45,18 @@ int BPF_PROG(sigma_clone, struct task_struct *parent,
   if (arg_start && arg_end > arg_start) {
     char cmdline[128];
     // Must use user_str helper since arg_start points to user virtual memory
-    bpf_probe_read_user_str(cmdline, sizeof(cmdline), (void *)arg_start);
+    bpf_probe_read_user_str(event.data, sizeof(cmdline), (void *)arg_start);
+
+    bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked), "fork");
+
+    event.ContainerID = cgid;
+    event.SourcePID = pid;
+    struct proc_key key = {
+        .pid = pid,
+        .start_time = start_time,
+    };
+    bpf_map_update_elem(&octagon_force_sigma_event_map_pin, &key, &event,
+                        BPF_ANY);
   }
 
   return 0;

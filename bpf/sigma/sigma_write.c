@@ -27,7 +27,7 @@ int sigma_enter_write(struct trace_event_raw_sys_enter *ctx) {
 
   bpf_probe_read_user(event.data, count, user_buf);
   event.ContainerID = cgid;
-  event.SourcePID = parent_pid;
+  event.SourcePID = pid;
   bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
                             "sys_enter_write");
   struct proc_key key = {
