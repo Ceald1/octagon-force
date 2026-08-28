@@ -27,7 +27,7 @@ int BPF_PROG(sigma_sched_process_exec, struct trace_event_raw_sys_enter *ctx1) {
                             "sys_enter_execve");
 
   event.ContainerID = cgid;
-  event.SourcePID = parent_pid;
+  event.SourcePID = pid;
   struct proc_key key = {
       .pid = pid,
       .start_time = start_time,
