@@ -140,10 +140,7 @@ data:
         action: "alert"
         filename: "/etc/passwd"
         message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
-      - rule:
-        name: bash spawned
-        filename: "/bin/bash"
-        message: "bash spawned by container: {{ContainerID}}"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -159,6 +156,39 @@ data:
     detection:
       selection:
         Data|endswith: "/curl"
-        Image|contains: "check_security"
+        Image|contains: ""
       condition: selection
     level: high
+    ---
+    title: bash spawned
+    id: a1b2c3d4-1111-2222-3333-444455556667
+    status: experimental
+    description: bash spawned!!
+    detection:
+      selection:
+        Data|endswith: "/bash"
+        Image|contains: ""
+      condition: selection
+    level: medium
+    ---
+    title: cat spawned
+    id: a1b2c3d4-1111-2222-3333-444455556668
+    status: experimental
+    description: cat spawned!!
+    detection:
+      selection:
+        Data|endswith: "/cat"
+        Image|contains: ""
+      condition: selection
+    level: medium
+    ---
+    title: ls spawned
+    id: a1b2c3d4-1111-2222-3333-444455556669
+    status: experimental
+    description: ls spawned!!
+    detection:
+      selection:
+        Data|endswith: "/ls"
+        Image|contains: ""
+      condition: selection
+    level: medium

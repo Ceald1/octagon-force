@@ -33,7 +33,7 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
   //    bpf_probe_read_kernel(event.data + 128, arg_length, arg_start);
   //  }
   event.ContainerID = cgid;
-  event.SourcePID = parent_pid;
+  event.SourcePID = pid;
   struct proc_key key = {
       .pid = pid,
       .start_time = start_time,
