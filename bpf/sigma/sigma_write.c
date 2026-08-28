@@ -13,9 +13,18 @@ int sigma_enter_write(struct trace_event_raw_sys_enter *ctx) {
     return 0;
   } // ignore if not in container
 
+  struct pid *thread_pid = BPF_CORE_READ(task, group_leader, thread_pid);
+  unsigned int level = BPF_CORE_READ(thread_pid, level);
+
+  pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+
+  u32 host_pid = BPF_CORE_READ(thread_pid, numbers[0].nr);
+
+  // 3. Extract Container NS PID (the PID seen inside the container)
+  u32 container_pid = BPF_CORE_READ(thread_pid, numbers[level].nr);
   u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
   u64 start_time = bpf_ktime_get_ns();
-  pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+  // pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
   __u64 cgid = bpf_get_current_cgroup_id(); // container ID
   struct sigma_event event;
 
@@ -27,7 +36,7 @@ int sigma_enter_write(struct trace_event_raw_sys_enter *ctx) {
 
   bpf_probe_read_user(event.data, count, user_buf);
   event.ContainerID = cgid;
-  event.SourcePID = pid;
+  event.SourcePID = container_pid;
   bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
                             "sys_enter_write");
   struct proc_key key = {

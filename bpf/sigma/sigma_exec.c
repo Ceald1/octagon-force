@@ -15,7 +15,15 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
 
   u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
   u64 start_time = BPF_CORE_READ(task, start_time);
+  struct pid *thread_pid = BPF_CORE_READ(task, group_leader, thread_pid);
+  unsigned int level = BPF_CORE_READ(thread_pid, level);
+
   pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+
+  u32 host_pid = BPF_CORE_READ(thread_pid, numbers[0].nr);
+
+  // 3. Extract Container NS PID (the PID seen inside the container)
+  u32 container_pid = BPF_CORE_READ(thread_pid, numbers[level].nr);
   __u64 cgid = bpf_get_current_cgroup_id();
 
   struct sigma_event event;
@@ -33,7 +41,7 @@ int BPF_PROG(sigma_sched_process_exec, struct linux_binprm *bprm) {
   //    bpf_probe_read_kernel(event.data + 128, arg_length, arg_start);
   //  }
   event.ContainerID = cgid;
-  event.SourcePID = pid;
+  event.SourcePID = container_pid;
   struct proc_key key = {
       .pid = pid,
       .start_time = start_time,
