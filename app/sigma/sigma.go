@@ -170,6 +170,7 @@ func Exec_Run(rules []s.Rule) {
 			if err != nil {
 				log.Warn("delete failed:", err)
 			}
+			log.Info(fmt.Sprintf("got event: %s", cString(Sevent.Data[:])))
 			go func() {
 				err = ParseRules(rules, Sevent, key)
 				if err != nil {
