@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -136,7 +137,8 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	}
 	podName, podNS, err = GetPodFromPID(ParentPID)
 
-	if len(podName) < 5 {
+	if len(podName) < 1 || err != nil {
+		log.Warn(err.Error())
 		podName, podNS, err = GetPodFromPID(PID)
 	}
 	return podName, podNS, err

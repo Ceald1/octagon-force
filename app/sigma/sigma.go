@@ -140,7 +140,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 			}
 			outLog.Source = podName
 			outLog.Data.Namespace = ns
-			log.Info(fmt.Sprintf("sigma event found! %s in namespace: %s", podName, ns))
+			// log.Info(fmt.Sprintf("sigma event found! %s in namespace: %s", podName, ns))
 			err = outputs.NewLokiPayload(outLog)
 			if err != nil {
 				log.Warn(err.Error())
