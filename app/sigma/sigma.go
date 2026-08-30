@@ -98,7 +98,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 		}
 	case "sys_enter_execve":
 		e = map[string]string{
-			"Image": "check_security",
+			"Image": "sys_enter_execve",
 			"Data":  cString(Sevent.Data[:]),
 		}
 	case "network":
