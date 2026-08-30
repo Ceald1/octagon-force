@@ -96,7 +96,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 			"Image": "sys_enter_write",
 			"Data":  base64.RawStdEncoding.EncodeToString(Sevent.Data[:]),
 		}
-	case "check_security":
+	case "sys_enter_execve":
 		e = map[string]string{
 			"Image": "check_security",
 			"Data":  cString(Sevent.Data[:]),
@@ -105,6 +105,11 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 		e = map[string]string{
 			"Image": "network",
 			"Data":  base64.RawStdEncoding.EncodeToString(Sevent.Data[:]),
+		}
+	case "fork":
+		e = map[string]string{
+			"Image": "fork",
+			"Data":  cString(Sevent.Data[:]),
 		}
 	default:
 		return
