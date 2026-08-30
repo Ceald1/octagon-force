@@ -138,8 +138,13 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	podName, podNS, err = GetPodFromPID(ParentPID)
 
 	if len(podName) < 1 || err != nil {
-		log.Warn(err.Error())
+		if err != nil {
+			log.Warn(err.Error())
+		}
 		podName, podNS, err = GetPodFromPID(PID)
+		if err != nil {
+			log.Warn(err)
+		}
 	}
 	return podName, podNS, err
 
