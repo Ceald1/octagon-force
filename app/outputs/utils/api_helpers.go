@@ -230,5 +230,5 @@ func GetPodUIDFromCgroupID(containerPID string) (string, error) {
 		return "", fmt.Errorf("error reading cgroup for PID %s: %w", containerPID, err)
 	}
 
-	return "", fmt.Errorf("process %s is not running inside a Kubernetes Pod", containerPID)
-}
+	return "", nil //fmt.Errorf("process %s is not running inside a Kubernetes Pod", containerPID)
+} // does not exist, return nothing!
