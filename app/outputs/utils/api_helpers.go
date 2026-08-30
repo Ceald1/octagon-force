@@ -206,6 +206,9 @@ func GetPodUIDFromCgroupID(containerPID string) (string, error) {
 		procRoot = "/proc"
 	}
 
+	if containerPID == "" {
+		return "", nil // does not exist, skip!!
+	}
 	cGroupPath := filepath.Join(procRoot, containerPID, "cgroup")
 
 	file, err := os.Open(cGroupPath)
