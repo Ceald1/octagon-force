@@ -155,51 +155,18 @@ data:
     description: curl was ran!!
     detection:
       selection:
-        Data|endswith: "/curl"
+        Data|contains: "/curl"
         Image|contains: "execve"
       condition: selection
     level: high
     ---
-    title: bash spawned
-    id: a1b2c3d4-1111-2222-3333-444455556667
+    title: Mount ran
+    id: a1b2c3d4-1111-2222-3333-444455556666
     status: experimental
-    description: bash spawned!!
+    description: mount was ran!!
     detection:
       selection:
-        Data|endswith: "/bash"
+        Data|contains: "mount "
         Image|contains: "execve"
       condition: selection
-    level: medium
-    ---
-    title: cat spawned
-    id: a1b2c3d4-1111-2222-3333-444455556668
-    status: experimental
-    description: cat spawned!!
-    detection:
-      selection:
-        Data|endswith: "/cat"
-        Image|contains: "execve"
-      condition: selection
-    level: medium
-    ---
-    title: ls spawned
-    id: a1b2c3d4-1111-2222-3333-444455556669
-    status: experimental
-    description: ls spawned!!
-    detection:
-      selection:
-        Data|endswith: "ls"
-        Image|contains: "execve"
-      condition: selection
-    level: medium
-    ---
-    title: sh spawned
-    id: a1b2c3d4-1111-2222-3333-444455556610
-    status: experimental
-    description: sh spawned!!
-    detection:
-      selection:
-        Data|endswith: "sh"
-        Image|contains: "execve"
-      condition: selection
-    level: medium
+    level: high

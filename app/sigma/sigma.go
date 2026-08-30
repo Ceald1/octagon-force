@@ -129,6 +129,7 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 				ContainerID: fmt.Sprintf("%d", Sevent.ContainerID),
 				ParentPID:   fmt.Sprintf("%d", Sevent.SourcePID),
 				PID:         fmt.Sprintf("%d", PIDKey.Pid),
+				CmdLine:     cString(Sevent.Data[:]),
 			}
 			outLog := utils.Output[utils.SigmaEvent]{
 				Data: output,

@@ -13,7 +13,8 @@ extern int bpf_strstr(const char *str, const char *substr) __ksym;
 #ifdef DEBUG
 #define DEBUG_YES = 1
 #endif
-
+#define MAX_CMDLINE_LEN 256
+#define MAX_ARGS 12
 typedef unsigned int u32;
 typedef int pid_t;
 const pid_t pid_filter = 0;
@@ -24,7 +25,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 struct sigma_event {
   pid_t SourcePID;
   __u64 ContainerID;
-  char data[256];
+  char data[MAX_CMDLINE_LEN];
   char hooked[16];
 };
 

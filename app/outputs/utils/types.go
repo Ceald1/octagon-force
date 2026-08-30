@@ -14,6 +14,7 @@ type SigmaEvent struct {
 	Name        string `json:"name"`
 	Level       string `json:"action"`
 	Message     string `json:"message"`
+	CmdLine     string `json:"cmdline"`
 	ContainerID string `json:"containerID"`
 	PID         string `json:"PID"`
 	ParentPID   string `json:"parentPID"`
