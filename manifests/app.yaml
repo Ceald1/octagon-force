@@ -156,7 +156,7 @@ data:
     detection:
       selection:
         Data|endswith: "/curl"
-        Image|contains: "sys_enter_execve"
+        Image|contains: "execve"
       condition: selection
     level: high
     ---
@@ -167,7 +167,7 @@ data:
     detection:
       selection:
         Data|endswith: "/bash"
-        Image|contains: "sys_enter_execve"
+        Image|contains: "execve"
       condition: selection
     level: medium
     ---
@@ -178,7 +178,7 @@ data:
     detection:
       selection:
         Data|endswith: "/cat"
-        Image|contains: "sys_enter_execve"
+        Image|contains: "execve"
       condition: selection
     level: medium
     ---
@@ -188,7 +188,18 @@ data:
     description: ls spawned!!
     detection:
       selection:
-        Data|endswith: "/ls"
-        Image|contains: "sys_enter_execve"
+        Data|endswith: "ls"
+        Image|contains: "execve"
+      condition: selection
+    level: medium
+    ---
+    title: sh spawned
+    id: a1b2c3d4-1111-2222-3333-444455556610
+    status: experimental
+    description: sh spawned!!
+    detection:
+      selection:
+        Data|endswith: "sh"
+        Image|contains: "execve"
       condition: selection
     level: medium

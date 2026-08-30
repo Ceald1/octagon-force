@@ -32,8 +32,7 @@ int sigma_sched_process_exec(struct trace_event_raw_sched_process_exec *ctx) {
     return 0;
   }
 
-  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked),
-                            "sched_process_exec");
+  bpf_probe_read_kernel_str(event.hooked, sizeof(event.hooked), "execve");
 
   event.ContainerID = cgid;
   event.SourcePID = parent_pid;

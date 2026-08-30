@@ -96,9 +96,9 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error)
 			"Image": "sys_enter_write",
 			"Data":  base64.RawStdEncoding.EncodeToString(Sevent.Data[:]),
 		}
-	case "sys_enter_execve":
+	case "execve":
 		e = map[string]string{
-			"Image": "sys_enter_execve",
+			"Image": "execve",
 			"Data":  cString(Sevent.Data[:]),
 		}
 	case "network":
