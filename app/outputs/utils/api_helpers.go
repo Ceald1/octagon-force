@@ -147,6 +147,9 @@ func GetPodFromPID(PID string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	if uid == "" {
+		return "", "", nil // does not exist, skip!!!
+	}
 
 	// Fallback to direct API list search if informer isn't initialized (e.g. in standalone unit tests)
 	if globalResolver == nil {
