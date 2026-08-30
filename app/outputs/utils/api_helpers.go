@@ -160,7 +160,7 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 		log.Warn(err.Error())
 	}
 
-	return "", "", fmt.Errorf("unable to resolve pod for PID %s or ParentPID %s", PID, ParentPID)
+	return "", "", fmt.Errorf("unable to resolve pod for PID %s or parent %s", PID, ParentPID)
 }
 
 //func (o Output[T]) GetPod() (podName string, podNS string, err error) {

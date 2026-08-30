@@ -135,11 +135,6 @@ data:
         action: "deny"
         filename: "/etc/shadow"
         message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
-      - rule:
-        name: passwd alert
-        action: "alert"
-        filename: "/etc/passwd"
-        message: "file: {{FileName}} was accessed by container ID: {{ContainerID}}"
 
 ---
 apiVersion: v1
