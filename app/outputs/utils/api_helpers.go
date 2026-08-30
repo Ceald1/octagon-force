@@ -37,7 +37,8 @@ type ContainerPIDProvider interface {
 }
 
 // Support both pod_UUID and podUUID / hyphenated cgroup formats
-var podUIDRegex = regexp.MustCompile(`pod[_-]?([a-f0-9]{8}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{12})`)
+// var podUIDRegex = regexp.MustCompile(`pod[_-]?([a-f0-9]{8}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{4}[-_][a-f0-9]{12})`)
+var podUIDRegex = regexp.MustCompile(`pod[_-]?([a-f0-9]{8}[-_]?[a-f0-9]{4}[-_]?[a-f0-9]{4}[-_]?[a-f0-9]{4}[-_]?[a-f0-9]{12})`)
 
 // PodResolver manages the informer cache and UID lookup
 type PodResolver struct {
@@ -113,12 +114,15 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	case *NetworkEvent:
 		if v != nil {
 			PID = v.PID
+			ParentPID = v.ParentPID
 		}
 	case SigmaEvent:
 		PID = v.PID
+		ParentPID = v.ParentPID
 	case *SigmaEvent:
 		if v != nil {
 			PID = v.PID
+			ParentPID = v.ParentPID
 		}
 	case FileSystemEvent:
 		PID = v.PID
@@ -132,24 +136,81 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 		return "", "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
 	}
 
-	if PID == "" || PID == "0" || ParentPID == "0" {
+	if PID == "" || PID == "0" {
 		return "", "", fmt.Errorf("invalid or missing container PID in event")
 	}
-	podName, podNS, err = GetPodFromPID(ParentPID)
 
-	if len(podName) < 1 || err != nil {
-		if err != nil {
-			log.Warn(err.Error())
-		}
-		podName, podNS, err = GetPodFromPID(PID)
-		if err != nil {
-			log.Warn(err)
+	// Attempt lookup using primary PID first
+	podName, podNS, err = GetPodFromPID(PID)
+	if err == nil && podName != "" {
+		return podName, podNS, nil
+	}
+	if err != nil {
+		log.Warn(err.Error())
+	}
+
+	// Fallback to ParentPID if primary PID lookup fails (e.g. short-lived exited process)
+	if ParentPID != "" && ParentPID != "0" {
+		podName, podNS, err = GetPodFromPID(ParentPID)
+		if err == nil && podName != "" {
+			return podName, podNS, nil
 		}
 	}
-	return podName, podNS, err
+	if err != nil {
+		log.Warn(err.Error())
+	}
 
-	//return pod.Name, pod.Namespace, nil
+	return "", "", fmt.Errorf("unable to resolve pod for PID %s or ParentPID %s", PID, ParentPID)
 }
+
+//func (o Output[T]) GetPod() (podName string, podNS string, err error) {
+//	var PID string
+//	var ParentPID string
+//
+//	switch v := any(o.Data).(type) {
+//	case NetworkEvent:
+//		PID = v.PID
+//		ParentPID = v.ParentPID
+//	case *NetworkEvent:
+//		if v != nil {
+//			PID = v.PID
+//		}
+//	case SigmaEvent:
+//		PID = v.PID
+//	case *SigmaEvent:
+//		if v != nil {
+//			PID = v.PID
+//		}
+//	case FileSystemEvent:
+//		PID = v.PID
+//	case *FileSystemEvent:
+//		if v != nil {
+//			PID = v.PID
+//		}
+//	case ContainerPIDProvider:
+//		PID = v.GetContainerPID()
+//	default:
+//		return "", "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
+//	}
+//
+//	if PID == "" || PID == "0" || ParentPID == "0" {
+//		return "", "", fmt.Errorf("invalid or missing container PID in event")
+//	}
+//	podName, podNS, err = GetPodFromPID(ParentPID)
+//
+//	if len(podName) < 1 || err != nil {
+//		if err != nil {
+//			log.Warn(err.Error())
+//		}
+//		podName, podNS, err = GetPodFromPID(PID)
+//		if err != nil {
+//			log.Warn(err)
+//		}
+//	}
+//	return podName, podNS, err
+//
+//	//return pod.Name, pod.Namespace, nil
+//}
 
 func GetPodFromPID(PID string) (string, string, error) {
 	uid, err := GetPodUIDFromCgroupID(PID)
@@ -239,8 +300,14 @@ func GetPodUIDFromCgroupID(containerPID string) (string, error) {
 
 		if matches := podUIDRegex.FindStringSubmatch(parts[2]); len(matches) > 1 {
 			// Convert systemd's escaped underscores back to standard UUID hyphens
-			podUID := strings.ReplaceAll(matches[1], "_", "-")
-			return podUID, nil
+			//podUID := strings.ReplaceAll(matches[1], "_", "-")
+			rawUID := strings.ReplaceAll(matches[1], "_", "")
+			rawUID = strings.ReplaceAll(rawUID, "-", "")
+			if len(rawUID) == 32 {
+				// Format into standard K8s Pod UID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+				podUID := fmt.Sprintf("%s-%s-%s-%s-%s", rawUID[0:8], rawUID[8:12], rawUID[12:16], rawUID[16:20], rawUID[20:32])
+				return podUID, nil
+			}
 		}
 	}
 
