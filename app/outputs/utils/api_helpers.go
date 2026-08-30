@@ -300,14 +300,8 @@ func GetPodUIDFromCgroupID(containerPID string) (string, error) {
 
 		if matches := podUIDRegex.FindStringSubmatch(parts[2]); len(matches) > 1 {
 			// Convert systemd's escaped underscores back to standard UUID hyphens
-			//podUID := strings.ReplaceAll(matches[1], "_", "-")
-			rawUID := strings.ReplaceAll(matches[1], "_", "")
-			rawUID = strings.ReplaceAll(rawUID, "-", "")
-			if len(rawUID) == 32 {
-				// Format into standard K8s Pod UID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-				podUID := fmt.Sprintf("%s-%s-%s-%s-%s", rawUID[0:8], rawUID[8:12], rawUID[12:16], rawUID[16:20], rawUID[20:32])
-				return podUID, nil
-			}
+			podUID := strings.ReplaceAll(matches[1], "_", "-")
+			return podUID, nil
 		}
 	}
 
