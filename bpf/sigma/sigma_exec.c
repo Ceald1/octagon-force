@@ -19,9 +19,20 @@ int sigma_sched_process_exec(struct trace_event_raw_sched_process_exec *ctx) {
     return 0;
   }
 
-  u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+  u64 pid_tgid = bpf_get_current_pid_tgid();
+  u32 user_pid = (u32)(pid_tgid >> 32);
+
+  // 3. Fetch True Parent PID
+  // Use group_leader->real_parent to handle multi-threaded exec transitions
+  // safely
+  struct task_struct *leader = BPF_CORE_READ(task, group_leader);
+  struct task_struct *parent_task = BPF_CORE_READ(leader, real_parent);
+  u32 parent_pid = BPF_CORE_READ(parent_task, tgid);
+
   u64 start_time = BPF_CORE_READ(task, start_time);
-  pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
+  // u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+  // u64 start_time = BPF_CORE_READ(task, start_time);
+  // pid_t parent_pid = BPF_CORE_READ(task, real_parent, pid);
   __u64 cgid = bpf_get_current_cgroup_id();
 
   struct sigma_event event = {};
@@ -80,7 +91,7 @@ int sigma_sched_process_exec(struct trace_event_raw_sched_process_exec *ctx) {
   event.SourcePID = parent_pid;
 
   struct proc_key key = {
-      .pid = pid,
+      .pid = user_pid,
       .start_time = start_time,
   };
 

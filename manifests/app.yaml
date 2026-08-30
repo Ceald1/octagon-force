@@ -155,18 +155,36 @@ data:
     description: curl was ran!!
     detection:
       selection:
-        Data|contains: "/curl"
+        Data|contains: "curl"
         Image|contains: "execve"
       condition: selection
     level: high
     ---
     title: Mount ran
-    id: a1b2c3d4-1111-2222-3333-444455556666
+    id: a1b2c3d4-1111-2222-3333-444455556667
     status: experimental
     description: mount was ran!!
+    logsource:
+      category: process_creation
+      product: linux
     detection:
-      selection:
-        Data|contains: "mount "
-        Image|contains: "execve"
-      condition: selection
+      selection_mount:
+        Image: "execve"
+        Data|contains: "mount"
+      filter_umount:
+        Data|contains: "umount"
+      condition: selection_mount and not filter_umount
     level: high
+    # title: Mount ran
+    # id: a1b2c3d4-1111-2222-3333-444455556667
+    # status: experimental
+    # description: mount was ran!!
+    # detection:
+    #   selection:
+    #     Data|contains:
+    #       - 'mount '
+    #       - '/bin/mount'
+    #       - '/usr/bin/mount'
+    #     Image|contains: "execve"
+    #   condition: selection
+    # level: high

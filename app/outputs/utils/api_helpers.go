@@ -134,9 +134,10 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	if PID == "" || PID == "0" || ParentPID == "0" {
 		return "", "", fmt.Errorf("invalid or missing container PID in event")
 	}
-	podName, podNS, err = GetPodFromPID(PID)
-	if podName == "" {
-		podName, podNS, err = GetPodFromPID(ParentPID)
+	podName, podNS, err = GetPodFromPID(ParentPID)
+
+	if len(podName) < 5 {
+		podName, podNS, err = GetPodFromPID(PID)
 	}
 	return podName, podNS, err
 
