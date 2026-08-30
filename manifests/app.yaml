@@ -156,7 +156,7 @@ data:
     detection:
       selection:
         Data|endswith: "/curl"
-        Image|contains: ""
+        Image|contains: "sys_enter_execve"
       condition: selection
     level: high
     ---
@@ -167,7 +167,7 @@ data:
     detection:
       selection:
         Data|endswith: "/bash"
-        Image|contains: ""
+        Image|contains: "sys_enter_execve"
       condition: selection
     level: medium
     ---
@@ -178,7 +178,7 @@ data:
     detection:
       selection:
         Data|endswith: "/cat"
-        Image|contains: ""
+        Image|contains: "sys_enter_execve"
       condition: selection
     level: medium
     ---
@@ -189,6 +189,6 @@ data:
     detection:
       selection:
         Data|endswith: "/ls"
-        Image|contains: ""
+        Image|contains: "sys_enter_execve"
       condition: selection
     level: medium
