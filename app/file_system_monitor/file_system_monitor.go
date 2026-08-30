@@ -144,7 +144,8 @@ func Run() {
 			outFileSystem.FileName = cString(violation.FileAccessed[:])
 			outFileSystem.Name = cString(violation.RuleName[:])
 			outFileSystem.ContainerID = fmt.Sprintf("%d", violation.ContainerID)
-			outFileSystem.ContainerPID = fmt.Sprintf("%d", violation.SourcePID)
+			outFileSystem.PID = fmt.Sprintf("%d", key.Pid)
+			outFileSystem.ParentPID = fmt.Sprintf("%d", violation.SourcePID)
 			tpl, _ := pongo2.FromString(RULEMAP[outFileSystem.Name].Message)
 			outFileSystem.Message, err = tpl.Execute(pongo2.Context{
 				"FileName":    outFileSystem.FileName,
@@ -162,8 +163,8 @@ func Run() {
 			}
 			podName, ns, err := outLog.GetPod()
 			if err != nil {
-				log.Warn(fmt.Sprintf("cannot get pod name for pid %d", violation.SourcePID))
-				podName = outFileSystem.ContainerPID
+				log.Warn(fmt.Sprintf("cannot get pod name for pid %d error: %v", violation.SourcePID, err))
+				podName = outFileSystem.ContainerID
 			} else {
 				outLog.Data.ContainerID = podName
 				outLog.Data.Message, _ = tpl.Execute(pongo2.Context{

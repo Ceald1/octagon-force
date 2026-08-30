@@ -95,7 +95,8 @@ func Run() {
 			}
 
 			outNetwork.ContainerID = fmt.Sprintf("%d", event.ContainerID)
-			outNetwork.ContainerPID = fmt.Sprintf("%d", event.SourcePID)
+			outNetwork.ParentPID = fmt.Sprintf("%d", event.SourcePID)
+			outNetwork.PID = fmt.Sprintf("%d", key.Pid)
 			outNetwork.Source = event.SAddr().String()
 			outNetwork.Destination = event.DAddr().String()
 			outNetwork.EventType = event.GetEventName()

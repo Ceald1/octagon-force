@@ -101,38 +101,49 @@ func InitResolver(ctx context.Context, client kubernetes.Interface) (*PodResolve
 }
 
 func (o Output[T]) GetPod() (podName string, podNS string, err error) {
-	var hostPID string
+	var PID string
+	var ParentPID string
 
 	switch v := any(o.Data).(type) {
 	case NetworkEvent:
-		hostPID = v.ContainerPID
+		PID = v.PID
+		ParentPID = v.ParentPID
 	case *NetworkEvent:
 		if v != nil {
-			hostPID = v.ContainerPID
+			PID = v.PID
 		}
 	case SigmaEvent:
-		hostPID = v.ContainerPID
+		PID = v.PID
 	case *SigmaEvent:
 		if v != nil {
-			hostPID = v.ContainerPID
+			PID = v.PID
 		}
 	case FileSystemEvent:
-		hostPID = v.ContainerPID
+		PID = v.PID
 	case *FileSystemEvent:
 		if v != nil {
-			hostPID = v.ContainerPID
+			PID = v.PID
 		}
 	case ContainerPIDProvider:
-		hostPID = v.GetContainerPID()
+		PID = v.GetContainerPID()
 	default:
 		return "", "", fmt.Errorf("unsupported event data type %T for pod lookup", o.Data)
 	}
 
-	if hostPID == "" || hostPID == "0" {
+	if PID == "" || PID == "0" || ParentPID == "0" {
 		return "", "", fmt.Errorf("invalid or missing container PID in event")
 	}
+	podName, podNS, err = GetPodFromPID(PID)
+	if podName == "" {
+		podName, podNS, err = GetPodFromPID(ParentPID)
+	}
+	return podName, podNS, err
 
-	uid, err := GetPodUIDFromCgroupID(hostPID)
+	//return pod.Name, pod.Namespace, nil
+}
+
+func GetPodFromPID(PID string) (string, string, error) {
+	uid, err := GetPodUIDFromCgroupID(PID)
 	if err != nil {
 		return "", "", err
 	}
@@ -152,7 +163,7 @@ func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	}
 
 	pod := objs[0].(*corev1.Pod)
-	return pod.Name, pod.Namespace, nil
+	return pod.Name, pod.Namespace, err
 }
 
 // Fallback direct list search (safe against "field label not supported" errors)

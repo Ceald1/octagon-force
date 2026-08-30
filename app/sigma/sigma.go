@@ -85,7 +85,7 @@ func GetRules() (rules []s.Rule, err error) {
 	return
 }
 
-func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
+func ParseRules(rules []s.Rule, Sevent Sigma_event, PIDKey proc_key) (err error) {
 
 	evaluator := se.ForRules(rules)
 	var e map[string]string
@@ -118,11 +118,12 @@ func ParseRules(rules []s.Rule, Sevent Sigma_event) (err error) {
 
 		if result.Match {
 			output := utils.SigmaEvent{
-				Name:         result.Title,
-				Level:        result.Level,
-				Message:      result.Description,
-				ContainerID:  fmt.Sprintf("%d", Sevent.ContainerID),
-				ContainerPID: fmt.Sprintf("%d", Sevent.SourcePID),
+				Name:        result.Title,
+				Level:       result.Level,
+				Message:     result.Description,
+				ContainerID: fmt.Sprintf("%d", Sevent.ContainerID),
+				ParentPID:   fmt.Sprintf("%d", Sevent.SourcePID),
+				PID:         fmt.Sprintf("%d", PIDKey.Pid),
 			}
 			outLog := utils.Output[utils.SigmaEvent]{
 				Data: output,
@@ -164,7 +165,7 @@ func Exec_Run(rules []s.Rule) {
 				log.Warn("delete failed:", err)
 			}
 			go func() {
-				err = ParseRules(rules, Sevent)
+				err = ParseRules(rules, Sevent, key)
 				if err != nil {
 					log.Warn(err)
 				}
@@ -192,7 +193,7 @@ func Write_Run(rules []s.Rule) {
 				log.Warn("delete failed:", err)
 			}
 			go func() {
-				err = ParseRules(rules, Sevent)
+				err = ParseRules(rules, Sevent, key)
 				if err != nil {
 					log.Warn(err)
 				}
@@ -219,7 +220,7 @@ func Fork_Run(rules []s.Rule) {
 				log.Warn("delete failed:", err)
 			}
 			go func() {
-				err = ParseRules(rules, Sevent)
+				err = ParseRules(rules, Sevent, key)
 				if err != nil {
 					log.Warn(err)
 				}
