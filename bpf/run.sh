@@ -6,6 +6,7 @@ make
 # Ensure tracefs is mounted inside the container
 if [ ! -d "/sys/kernel/tracing/events" ]; then
     mount -t tracefs nodev /sys/kernel/tracing 2>/dev/null || true
+    sudo mount -t tracefs tracefs /sys/kernel/tracing 2>/dev/null
 fi
 
 if [ ! -d "/sys/kernel/debug/tracing" ]; then
