@@ -212,7 +212,7 @@ func GetPodUIDFromCgroupID(containerPID string) (string, error) {
 	cGroupPath := filepath.Join(procRoot, containerPID, "cgroup")
 
 	file, err := os.Open(cGroupPath)
-	if err != nil {
+	if err != nil && err != os.ErrExist {
 		return "", fmt.Errorf("failed to open cgroup for PID %s at %s: %w", containerPID, cGroupPath, err)
 	}
 	defer file.Close()
