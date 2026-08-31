@@ -130,7 +130,10 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	))
 
 	// 3. Delegate sending logic to the lower-level helper
-	_ = sendOTLPTrace(ctx)
+	err := sendOTLPTrace(ctx)
+	if err != nil {
+		log.Warn(err.Error())
+	}
 
 }
 
