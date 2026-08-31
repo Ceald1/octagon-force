@@ -11,11 +11,12 @@ import (
 	"strconv"
 	"time"
 
-	"log/slog"
-
 	"github.com/Ceald1/octagon-force/app/outputs/utils"
 	"github.com/charmbracelet/log"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -85,26 +86,74 @@ func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 	return nil
 }
 
-func LogWithTrace(ctx context.Context, logger slog.Logger, level slog.Level, msg string, attrs ...slog.Attr) {
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		attrs = append(attrs, slog.String("trace_id", span.SpanContext().TraceID().String()))
-		attrs = append(attrs, slog.String("span_id", span.SpanContext().SpanID().String()))
+func sendOTLPTrace(ctx context.Context) error {
+	tempoHost := os.Getenv("TEMPO_HOST")
+	if tempoHost == "" {
+		tempoHost = "tempo.monitoring.svc.cluster.local:4318"
 	}
-	logger.LogAttrs(ctx, level, msg, attrs...)
+
+	exporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpoint(tempoHost), // host:port without http://
+		otlptracehttp.WithInsecure(),
+	)
+	if err != nil {
+		return fmt.Errorf("exporter error: %w", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+	)
+
+	// Force immediate flush of the current trace span
+	return tp.ForceFlush(ctx)
 }
 
+// Your actual event handler (clean and minimal)
 func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
-	convertedEvent := utils.NetworkEvent(octoEvent.Data)
-	baseHandler := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	traceer := otel.Tracer("octagon-force-network")
+	event := utils.NetworkEvent(octoEvent.Data)
+	ctx := context.Background()
 
-	ctx, span := traceer.Start(context.Background(), "NetworkEvent")
+	tracer := otel.Tracer("octagon-force-network")
+	_, span := tracer.Start(context.Background(), event.EventType)
 	defer span.End()
 
-	LogWithTrace(ctx, *baseHandler, slog.LevelInfo, convertedEvent.EventType, slog.String(convertedEvent.Destination, convertedEvent.Source))
+	span.SetAttributes(
+		attribute.String("source", event.Source),
+		attribute.String("destination", event.Destination),
+	)
+
+	// 2. Attach Span Event
+	span.AddEvent("network_event_captured", trace.WithAttributes(
+		attribute.String("source", event.Source),
+		attribute.String("destination", event.Destination),
+		attribute.String("event.type", event.EventType),
+	))
+
+	// 3. Delegate sending logic to the lower-level helper
+	_ = sendOTLPTrace(ctx)
+
 }
 
+//func LogWithTrace(ctx context.Context, logger slog.Logger, level slog.Level, msg string, attrs ...slog.Attr) {
+//	span := trace.SpanFromContext(ctx)
+//	if span.SpanContext().IsValid() {
+//		attrs = append(attrs, slog.String("trace_id", span.SpanContext().TraceID().String()))
+//		attrs = append(attrs, slog.String("span_id", span.SpanContext().SpanID().String()))
+//	}
+//	logger.LogAttrs(ctx, level, msg, attrs...)
+//}
+//
+//func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
+//	convertedEvent := utils.NetworkEvent(octoEvent.Data)
+//	baseHandler := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+//	traceer := otel.Tracer("octagon-force-network")
+//
+//	ctx, span := traceer.Start(context.Background(), "NetworkEvent")
+//	defer span.End()
+//
+//	LogWithTrace(ctx, *baseHandler, slog.LevelInfo, convertedEvent.EventType, slog.String(convertedEvent.Destination, convertedEvent.Source))
+//}
+//
 //func Enqueue[T utils.EventData](queue []utils.Output[T], element utils.Output[T]) []utils.Output[T] {
 //	queue = append(queue, element) // Simply append to enqueue.
 //	fmt.Println("Enqueued:", element)
