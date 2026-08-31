@@ -170,16 +170,3 @@ data:
         Data|contains: "umount"
       condition: selection_mount and not filter_umount
     level: high
-    # title: Mount ran
-    # id: a1b2c3d4-1111-2222-3333-444455556667
-    # status: experimental
-    # description: mount was ran!!
-    # detection:
-    #   selection:
-    #     Data|contains:
-    #       - 'mount '
-    #       - '/bin/mount'
-    #       - '/usr/bin/mount'
-    #     Image|contains: "execve"
-    #   condition: selection
-    # level: high

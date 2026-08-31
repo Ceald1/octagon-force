@@ -112,10 +112,10 @@ func Run() {
 				outLog.Data.Namespace = ns
 			}
 			outputs.NetworkTraceLog(outLog)
-			//err = outputs.NewLokiPayload(outLog)
-			//if err != nil {
-			//	log.Warn(err.Error())
-			//}
+			err = outputs.NewLokiPayload(outLog)
+			if err != nil {
+				log.Warn(err.Error())
+			} // don't wanna break loki if all fails
 
 			// log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
 
