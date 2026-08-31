@@ -24,6 +24,8 @@ const LokiOut string = "Loki"
 
 const LokiContentType = "application/json"
 
+var globalTP *sdktrace.TracerProvider
+
 func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 
 	switch any(octagonData.Data).(type) {
@@ -87,54 +89,59 @@ func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 }
 
 func sendOTLPTrace(ctx context.Context) error {
-	tempoHost := os.Getenv("TEMPO_HOST")
-	if tempoHost == "" {
-		tempoHost = "tempo.monitoring.svc.cluster.local:4318"
+	if globalTP == nil {
+		tempoHost := os.Getenv("TEMPO_HOST")
+		if tempoHost == "" {
+			tempoHost = "tempo.monitoring.svc.cluster.local:4318"
+		}
+
+		exporter, err := otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpoint(tempoHost), // host:port without http://
+			otlptracehttp.WithInsecure(),
+		)
+		if err != nil {
+			return fmt.Errorf("exporter error: %w", err)
+		}
+
+		// Use Syncer instead of Batcher if you want immediate synchronous HTTP delivery per event
+		globalTP = sdktrace.NewTracerProvider(
+			sdktrace.WithSyncer(exporter),
+		)
+
+		// Register it so otel.Tracer() routes spans to this provider
+		otel.SetTracerProvider(globalTP)
 	}
 
-	exporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(tempoHost), // host:port without http://
-		otlptracehttp.WithInsecure(),
-	)
-	if err != nil {
-		return fmt.Errorf("exporter error: %w", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-	)
-
-	// Force immediate flush of the current trace span
-	return tp.ForceFlush(ctx)
+	// Flush the provider that actually owns the spans
+	return globalTP.ForceFlush(ctx)
 }
 
-// Your actual event handler (clean and minimal)
 func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	event := utils.NetworkEvent(octoEvent.Data)
 	ctx := context.Background()
 
+	// Ensure the provider and exporter are wired up first
+	if err := sendOTLPTrace(ctx); err != nil {
+		log.Warn(err.Error())
+	}
+
+	// Now otel.Tracer() targets globalTP
 	tracer := otel.Tracer("octagon-force-network")
-	_, span := tracer.Start(context.Background(), event.EventType)
-	defer span.End()
+	_, span := tracer.Start(ctx, event.EventType)
 
 	span.SetAttributes(
 		attribute.String("source", event.Source),
 		attribute.String("destination", event.Destination),
 	)
 
-	// 2. Attach Span Event
 	span.AddEvent("network_event_captured", trace.WithAttributes(
 		attribute.String("source", event.Source),
 		attribute.String("destination", event.Destination),
 		attribute.String("event.type", event.EventType),
 	))
 
-	// 3. Delegate sending logic to the lower-level helper
-	err := sendOTLPTrace(ctx)
-	if err != nil {
-		log.Warn(err.Error())
-	}
-
+	// Close span after attributes/events are set so the syncer transmits complete data
+	span.End()
 }
 
 //func LogWithTrace(ctx context.Context, logger slog.Logger, level slog.Level, msg string, attrs ...slog.Attr) {
