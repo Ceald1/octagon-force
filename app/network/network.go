@@ -81,7 +81,7 @@ func Run() {
 		log.Warn("error loading pinned map for network observing.\n")
 		return
 	}
-	log.Info("starting network observing")
+	//log.Info("starting network observing")
 	defer prog.Close()
 	for {
 		var event NetworkEvent
@@ -111,10 +111,11 @@ func Run() {
 				outLog.Source = podname
 				outLog.Data.Namespace = ns
 			}
-			err = outputs.NewLokiPayload(outLog)
-			if err != nil {
-				log.Warn(err.Error())
-			}
+			outputs.NetworkTraceLog(outLog)
+			//err = outputs.NewLokiPayload(outLog)
+			//if err != nil {
+			//	log.Warn(err.Error())
+			//}
 
 			// log.Info(fmt.Sprintf("container pid: %d performed: %s from %s to: %s\n", event.SourcePID, out.EventName, event.SAddr().String(), event.DAddr().String()))
 

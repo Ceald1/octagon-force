@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,8 +11,12 @@ import (
 	"strconv"
 	"time"
 
+	"log/slog"
+
 	"github.com/Ceald1/octagon-force/app/outputs/utils"
 	"github.com/charmbracelet/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const LokiOut string = "Loki"
@@ -78,6 +83,26 @@ func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 	}
 
 	return nil
+}
+
+func LogWithTrace(ctx context.Context, logger slog.Logger, level slog.Level, msg string, attrs ...slog.Attr) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		attrs = append(attrs, slog.String("trace_id", span.SpanContext().TraceID().String()))
+		attrs = append(attrs, slog.String("span_id", span.SpanContext().SpanID().String()))
+	}
+	logger.LogAttrs(ctx, level, msg, attrs...)
+}
+
+func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
+	convertedEvent := utils.NetworkEvent(octoEvent.Data)
+	baseHandler := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	traceer := otel.Tracer("octagon-force-network")
+
+	ctx, span := traceer.Start(context.Background(), "NetworkEvent")
+	defer span.End()
+
+	LogWithTrace(ctx, *baseHandler, slog.LevelInfo, convertedEvent.EventType, slog.String(convertedEvent.Destination, convertedEvent.Source))
 }
 
 //func Enqueue[T utils.EventData](queue []utils.Output[T], element utils.Output[T]) []utils.Output[T] {
