@@ -125,7 +125,7 @@ func ResolveIP(ip string) (podName string, podNs string, err error) {
 	}
 
 	for _, svc := range svcList.Items {
-		if string(svc.Spec.ClusterIP) == ip {
+		if svc.Spec.ClusterIP == ip {
 			return svc.Name, svc.Namespace, nil
 		}
 	}
@@ -134,7 +134,7 @@ func ResolveIP(ip string) (podName string, podNs string, err error) {
 		return "", "", err
 	}
 	for _, pod := range podList.Items {
-		if string(pod.Status.HostIP) == ip {
+		if pod.Status.PodIP == ip {
 			return pod.Name, pod.Namespace, nil
 		}
 	}
