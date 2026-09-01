@@ -26,8 +26,6 @@ const LokiOut string = "Loki"
 
 const LokiContentType = "application/json"
 
-var globalTP *sdktrace.TracerProvider
-
 func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 
 	switch any(octagonData.Data).(type) {
@@ -142,8 +140,12 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(dstRes),
 	)
-	defer srcTP.Shutdown(ctx)
-	defer dstTP.Shutdown(ctx)
+	defer func() {
+		_ = srcTP.ForceFlush(ctx)
+		_ = dstTP.ForceFlush(ctx)
+		_ = srcTP.Shutdown(ctx)
+		_ = dstTP.Shutdown(ctx)
+	}()
 	// Client span: source IP making the call.
 	clientCtx, clientSpan := srcTP.Tracer("octagon-force-network").Start(ctx, event.EventType,
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -161,177 +163,3 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	)
 	serverSpan.End()
 }
-
-//func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
-//	event := utils.NetworkEvent(octoEvent.Data)
-//	ctx := context.Background()
-//
-//	tempoHost := os.Getenv("TEMPO_HOST")
-//	if tempoHost == "" {
-//		tempoHost = "tempo.monitoring.svc.cluster.local:4318"
-//	}
-//
-//	exporter, err := otlptracehttp.New(ctx,
-//		otlptracehttp.WithEndpoint(tempoHost),
-//		otlptracehttp.WithInsecure(),
-//	)
-//	if err != nil {
-//		return
-//	}
-//
-//	res, err := resource.New(ctx,
-//		resource.WithAttributes(
-//			semconv.ServiceNameKey.String(event.Source), // SOURCE node
-//		),
-//	)
-//	if err != nil {
-//		return
-//	}
-//
-//	tp := sdktrace.NewTracerProvider(
-//		sdktrace.WithSyncer(exporter),
-//		sdktrace.WithResource(res),
-//	)
-//	defer tp.Shutdown(ctx)
-//
-//	tracer := tp.Tracer("octagon-force-network")
-//	_, span := tracer.Start(ctx, event.EventType,
-//		trace.WithSpanKind(trace.SpanKindClient),
-//	)
-//	span.SetAttributes(
-//		attribute.String("peer.service", event.Destination), // DESTINATION node
-//	)
-//	span.End()
-//}
-//
-////func sendOTLPTrace(ctx context.Context) error {
-////	if globalTP == nil {
-////		tempoHost := os.Getenv("TEMPO_HOST")
-////		if tempoHost == "" {
-////			tempoHost = "tempo.monitoring.svc.cluster.local:4318"
-////		}
-////
-////		exporter, err := otlptracehttp.New(ctx,
-////			otlptracehttp.WithEndpoint(tempoHost),
-////			otlptracehttp.WithInsecure(),
-////		)
-////		if err != nil {
-////			return fmt.Errorf("exporter error: %w", err)
-////		}
-////
-////		// Defines the SOURCE node name on the Service Graph
-////		res, err := resource.New(ctx,
-////			resource.WithAttributes(
-////				semconv.ServiceNameKey.String("octagon-force-network"),
-////			),
-////		)
-////		if err != nil {
-////			return fmt.Errorf("resource error: %w", err)
-////		}
-////
-////		// Uses Syncer for immediate HTTP dispatch per event
-////		globalTP = sdktrace.NewTracerProvider(
-////			sdktrace.WithSyncer(exporter),
-////			sdktrace.WithResource(res),
-////		)
-////
-////		otel.SetTracerProvider(globalTP)
-////	}
-////
-////	return globalTP.ForceFlush(ctx)
-////}
-////
-////// 2. Event Handler: Sets Span Kind and Peer Service for Graph Edges
-////func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
-////	event := utils.NetworkEvent(octoEvent.Data)
-////	ctx := context.Background()
-////
-////	if err := sendOTLPTrace(ctx); err != nil {
-////		// Log warning or handle error
-////	}
-////
-////	tracer := otel.Tracer("octagon-force-network")
-////
-////	// SpanKindClient tells Tempo this span represents outbound client traffic
-////	ctx, span := tracer.Start(ctx, event.EventType,
-////		trace.WithSpanKind(trace.SpanKindClient),
-////	)
-////
-////	// Set standard attributes for Service Graph edge resolution
-////	span.SetAttributes(
-////		// 'peer.service' tells Tempo what the DESTINATION node name is
-////		attribute.String("peer.service", event.Destination),
-////		attribute.String("server.address", event.Destination),
-////		attribute.String("client.address", event.Source),
-////		attribute.String("source", event.Source),
-////		attribute.String("destination", event.Destination),
-////	)
-////
-////	// Attach as an in-trace timestamped event
-////	span.AddEvent("network_event_captured", trace.WithAttributes(
-////		attribute.String("source", event.Source),
-////		attribute.String("destination", event.Destination),
-////		attribute.String("event.type", event.EventType),
-////	))
-////
-////	// Close span after attributes are set so complete data is sent
-////	span.End()
-////}
-////
-//////func sendOTLPTrace(ctx context.Context) error {
-//////	if globalTP == nil {
-//////		tempoHost := os.Getenv("TEMPO_HOST")
-//////		if tempoHost == "" {
-//////			tempoHost = "tempo.monitoring.svc.cluster.local:4318"
-//////		}
-//////
-//////		exporter, err := otlptracehttp.New(ctx,
-//////			otlptracehttp.WithEndpoint(tempoHost), // host:port without http://
-//////			otlptracehttp.WithInsecure(),
-//////		)
-//////		if err != nil {
-//////			return fmt.Errorf("exporter error: %w", err)
-//////		}
-//////
-//////		// Use Syncer instead of Batcher if you want immediate synchronous HTTP delivery per event
-//////		globalTP = sdktrace.NewTracerProvider(
-//////			sdktrace.WithSyncer(exporter),
-//////		)
-//////
-//////		// Register it so otel.Tracer() routes spans to this provider
-//////		otel.SetTracerProvider(globalTP)
-//////	}
-//////
-//////	// Flush the provider that actually owns the spans
-//////	return globalTP.ForceFlush(ctx)
-//////}
-//////
-//////func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
-//////	event := utils.NetworkEvent(octoEvent.Data)
-//////	ctx := context.Background()
-//////
-//////	// Ensure the provider and exporter are wired up first
-//////	if err := sendOTLPTrace(ctx); err != nil {
-//////		log.Warn(err.Error())
-//////	}
-//////
-//////	// Now otel.Tracer() targets globalTP
-//////	tracer := otel.Tracer("octagon-force-network")
-//////	_, span := tracer.Start(ctx, event.EventType)
-//////
-//////	span.SetAttributes(
-//////		attribute.String("source", event.Source),
-//////		attribute.String("destination", event.Destination),
-//////	)
-//////
-//////	span.AddEvent("network_event_captured", trace.WithAttributes(
-//////		attribute.String("source", event.Source),
-//////		attribute.String("destination", event.Destination),
-//////		attribute.String("event.type", event.EventType),
-//////	))
-//////
-//////	// Close span after attributes/events are set so the syncer transmits complete data
-//////	span.End()
-//////}
-//////
-//////

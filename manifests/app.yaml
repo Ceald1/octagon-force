@@ -83,7 +83,7 @@ spec:
             - name: LOKI_HOST
               value: "signoz-k8s-infra-otel-agent.monitoring.svc.cluster.local:3100"
             - name: TEMPO_HOST
-              value: "signoz-k8s-infra-otel-agent.monitoring.svc.cluster.local:4318"
+              value: "signoz-otel-collector.monitoring.svc.cluster.local:4318"
           volumeMounts:
             # 1. BPF File System
             - name: sys-fs-bpf
