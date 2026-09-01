@@ -4,8 +4,8 @@ metadata:
   name: otel-prom-collector
   namespace: monitoring
 spec:
+  managementState: managed
   mode: statefulset
-  replicas: 1
   image: otel/opentelemetry-collector-contrib:0.108.0
 
   ports:
@@ -17,24 +17,43 @@ spec:
       port: 4317
       targetPort: 4317
       protocol: TCP
+      appProtocol: grpc
     - name: otlp-http
       port: 4318
       targetPort: 4318
       protocol: TCP
+      appProtocol: http
 
   targetAllocator:
     enabled: true
     prometheusCR:
       enabled: true
+      serviceMonitorSelector: {}
       scrapeProtocols:
         - OpenMetricsText1.0.0
         - OpenMetricsText0.0.1
         - PrometheusText0.0.4
-      serviceMonitorSelector: {}
-      podMonitorSelector: {}
 
   config:
+    connectors:
+      servicegraph:
+        latency_histogram_buckets: [1ms, 5ms, 10ms, 100ms, 250ms, 500ms, 1s, 5s]
+        dimensions:
+          - k8s.namespace.name
+
     receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+      loki:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:3100
+
       prometheus:
         config:
           scrape_configs:
@@ -44,29 +63,17 @@ spec:
                 - OpenMetricsText0.0.1
                 - PrometheusText0.0.4
               target_allocator:
-                endpoint: "http://otel-prom-collector-targetallocator:80"
+                endpoint: "http://otel-prom-collector-targetallocator.monitoring.svc.cluster.local:80"
                 interval: 30s
                 collector_id: "${POD_NAME}"
-
-      loki:
-        protocols:
-          http:
-            endpoint: "0.0.0.0:3100"
-
-      otlp:
-        protocols:
-          grpc:
-            endpoint: "0.0.0.0:4317"
-          http:
-            endpoint: "0.0.0.0:4318"
 
     processors:
       batch:
         send_batch_size: 8192
-        timeout: 5s
+        timeout: 1s
 
     exporters:
-      otlp:
+      otlp/signoz:
         endpoint: "signoz-otel-collector.monitoring.svc.cluster.local:4317"
         tls:
           insecure: true
@@ -76,18 +83,18 @@ spec:
         metrics:
           address: "0.0.0.0:8889"
       pipelines:
-        metrics:
-          receivers: [prometheus]
-          processors: [batch]
-          exporters: [otlp]
-        logs:
-          receivers: [loki]
-          processors: [batch]
-          exporters: [otlp]
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlp]
+          exporters: [otlp/signoz, servicegraph]
+        metrics:
+          receivers: [prometheus, servicegraph]
+          processors: [batch]
+          exporters: [otlp/signoz]
+        logs:
+          receivers: [loki]
+          processors: [batch]
+          exporters: [otlp/signoz]
 
 #apiVersion: opentelemetry.io/v1beta1
 #kind: OpenTelemetryCollector
@@ -104,6 +111,14 @@ spec:
 #      port: 3100
 #      targetPort: 3100
 #      protocol: TCP
+#    - name: otlp-grpc
+#      port: 4317
+#      targetPort: 4317
+#      protocol: TCP
+#    - name: otlp-http
+#      port: 4318
+#      targetPort: 4318
+#      protocol: TCP
 #
 #  targetAllocator:
 #    enabled: true
@@ -117,6 +132,22 @@ spec:
 #      podMonitorSelector: {}
 #
 #  config:
+#    connectors:
+#      servicegraph:
+#        latency_histogram_buckets: [1ms, 5ms, 10ms, 100ms, 250ms, 500ms, 1s, 5s]
+#        dimensions:
+#          - k8s.namespace.name
+#
+#      pipelines:
+#        traces:
+#          receivers: [otlp]
+#          processors: [batch]
+#          exporters: [otlp, servicegraph] # Feeds traces into the connector
+#
+#      metrics:
+#        receivers: [prometheus, servicegraph] # Receives generated service graph metrics
+#        processors: [batch]
+#        exporters: [otlp]
 #    receivers:
 #      prometheus:
 #        config:
@@ -136,6 +167,13 @@ spec:
 #          http:
 #            endpoint: "0.0.0.0:3100"
 #
+#      otlp:
+#        protocols:
+#          grpc:
+#            endpoint: "0.0.0.0:4317"
+#          http:
+#            endpoint: "0.0.0.0:4318"
+#
 #    processors:
 #      batch:
 #        send_batch_size: 8192
@@ -148,7 +186,6 @@ spec:
 #          insecure: true
 #
 #    service:
-#      # Change collector internal telemetry port to avoid 8888 conflict with sidecar
 #      telemetry:
 #        metrics:
 #          address: "0.0.0.0:8889"
@@ -161,6 +198,10 @@ spec:
 #          receivers: [loki]
 #          processors: [batch]
 #          exporters: [otlp]
+#        traces:
+#          receivers: [otlp]
+#          processors: [batch]
+#          exporters: [otlp]
 #
 ##apiVersion: opentelemetry.io/v1beta1
 ##kind: OpenTelemetryCollector
@@ -170,12 +211,22 @@ spec:
 ##spec:
 ##  mode: statefulset
 ##  replicas: 1
+##  image: otel/opentelemetry-collector-contrib:0.108.0
 ##
-##  # Target Allocator watches K8s API for Prometheus CRDs
+##  ports:
+##    - name: loki-http
+##      port: 3100
+##      targetPort: 3100
+##      protocol: TCP
+##
 ##  targetAllocator:
 ##    enabled: true
 ##    prometheusCR:
 ##      enabled: true
+##      scrapeProtocols:
+##        - OpenMetricsText1.0.0
+##        - OpenMetricsText0.0.1
+##        - PrometheusText0.0.4
 ##      serviceMonitorSelector: {}
 ##      podMonitorSelector: {}
 ##
@@ -185,6 +236,10 @@ spec:
 ##        config:
 ##          scrape_configs:
 ##            - job_name: "target-allocator"
+##              scrape_protocols:
+##                - OpenMetricsText1.0.0
+##                - OpenMetricsText0.0.1
+##                - PrometheusText0.0.4
 ##              target_allocator:
 ##                endpoint: "http://otel-prom-collector-targetallocator:80"
 ##                interval: 30s
@@ -207,8 +262,67 @@ spec:
 ##          insecure: true
 ##
 ##    service:
+##      # Change collector internal telemetry port to avoid 8888 conflict with sidecar
+##      telemetry:
+##        metrics:
+##          address: "0.0.0.0:8889"
 ##      pipelines:
 ##        metrics:
-##          receivers: [prometheus, loki]
+##          receivers: [prometheus]
 ##          processors: [batch]
 ##          exporters: [otlp]
+##        logs:
+##          receivers: [loki]
+##          processors: [batch]
+##          exporters: [otlp]
+##
+###apiVersion: opentelemetry.io/v1beta1
+###kind: OpenTelemetryCollector
+###metadata:
+###  name: otel-prom-collector
+###  namespace: monitoring
+###spec:
+###  mode: statefulset
+###  replicas: 1
+###
+###  # Target Allocator watches K8s API for Prometheus CRDs
+###  targetAllocator:
+###    enabled: true
+###    prometheusCR:
+###      enabled: true
+###      serviceMonitorSelector: {}
+###      podMonitorSelector: {}
+###
+###  config:
+###    receivers:
+###      prometheus:
+###        config:
+###          scrape_configs:
+###            - job_name: "target-allocator"
+###              target_allocator:
+###                endpoint: "http://otel-prom-collector-targetallocator:80"
+###                interval: 30s
+###                collector_id: "${POD_NAME}"
+###
+###      loki:
+###        protocols:
+###          http:
+###            endpoint: "0.0.0.0:3100"
+###
+###    processors:
+###      batch:
+###        send_batch_size: 8192
+###        timeout: 5s
+###
+###    exporters:
+###      otlp:
+###        endpoint: "signoz-otel-collector.monitoring.svc.cluster.local:4317"
+###        tls:
+###          insecure: true
+###
+###    service:
+###      pipelines:
+###        metrics:
+###          receivers: [prometheus, loki]
+###          processors: [batch]
+###          exporters: [otlp]
