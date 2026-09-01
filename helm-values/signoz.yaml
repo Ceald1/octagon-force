@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: signoz-ingress
+  namespace: monitoring
+  annotations:
+    cert-manager.io/cluster-issuer: orbit-ca-issuer
+
+spec:
+  ingressClassName: traefik
+
+  tls:
+    - hosts:
+        - dashboard.orbit.orbit # change with your preferred hostname
+      secretName: signoz-tls
+
+  rules:
+    - host: dashboard.orbit.orbit # change with your preferred hostname
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: signoz
+                port:
+                  number: 8080

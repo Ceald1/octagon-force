@@ -1,0 +1,47 @@
+opentelemetry-operator:
+  enabled: true
+collector:
+  enabled: false
+standaloneCollector:
+  enabled: false
+# Configure the StatefulSet Collector with Target Allocator
+#standaloneCollector:
+#  enabled: true
+#  mode: statefulset
+#
+#  targetAllocator:
+#    enabled: true
+#    prometheusCR:
+#      enabled: true
+#      serviceMonitorSelector: {}
+#      podMonitorSelector: {}
+#
+#  config:
+#    receivers:
+#      prometheus:
+#        config:
+#          scrape_configs:
+#            - job_name: "target-allocator"
+#              target_allocator:
+#                # The Operator auto-creates the Target Allocator service following this naming format
+#                endpoint: "http://otel-prom-collector-targetallocator:80"
+#                interval: 30s
+#                collector_id: "${POD_NAME}"
+#
+#    processors:
+#      batch:
+#        send_batch_size: 8192
+#        timeout: 5s
+#
+#    exporters:
+#      otlp:
+#        endpoint: "signoz-otel-collector.monitoring.svc.cluster.local:4317"
+#        tls:
+#          insecure: true
+#
+#    service:
+#      pipelines:
+#        metrics:
+#          receivers: [prometheus]
+#          processors: [batch]
+#          exporters: [otlp]

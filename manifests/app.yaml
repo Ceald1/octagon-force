@@ -81,7 +81,9 @@ spec:
           name: octagon-force-app
           env:
             - name: LOKI_HOST
-              value: "loki-headless.monitoring.svc.cluster.local:3100"
+              value: "otel-prom-collector-collector.monitoring.svc.cluster.local:3100"
+            - name: TEMPO_HOST
+              value: "otel-prom-collector-collector.monitoring.svc.cluster.local:4318"
           volumeMounts:
             # 1. BPF File System
             - name: sys-fs-bpf

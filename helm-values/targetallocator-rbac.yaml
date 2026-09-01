@@ -1,0 +1,41 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-prom-collector-targetallocator-role
+rules:
+  # Core K8s resources for Prometheus discovery
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - nodes/metrics
+      - services
+      - endpoints
+      - namespaces
+      - configmaps
+      - secrets # <-- Added missing permission
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+  # Prometheus Operator CRDs
+  - apiGroups: ["monitoring.coreos.com"]
+    resources:
+      - servicemonitors
+      - podmonitors
+      - probes
+      - scrapeconfigs
+    verbs: ["*"]
+  # Non-resource API paths for health & metrics endpoints
+  - nonResourceURLs:
+      - "/api"
+      - "/api/*"
+      - "/apis"
+      - "/apis/*"
+      - "/metrics"
+    verbs: ["get"]
