@@ -109,14 +109,26 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 
 	// Two resources, one per IP, so src and dest end up as different
 	// service.name values on their respective spans.
+	resoledName, ns, err := utils.ResolveIP(event.Source)
+	if err != nil {
+		resoledName = event.Source
+	} else {
+		resoledName = fmt.Sprintf("%s.%s", resoledName, ns)
+	}
 	srcRes, err := resource.New(ctx,
-		resource.WithAttributes(semconv.ServiceNameKey.String(event.Source)),
+		resource.WithAttributes(semconv.ServiceNameKey.String(resoledName)),
 	)
 	if err != nil {
 		return
 	}
+	resoledNameD, nsD, err := utils.ResolveIP(event.Destination)
+	if err != nil {
+		resoledNameD = event.Destination
+	} else {
+		resoledNameD = fmt.Sprintf("%s.%s", resoledName, nsD)
+	}
 	dstRes, err := resource.New(ctx,
-		resource.WithAttributes(semconv.ServiceNameKey.String(event.Destination)),
+		resource.WithAttributes(semconv.ServiceNameKey.String(resoledNameD)),
 	)
 	if err != nil {
 		return
@@ -138,7 +150,7 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 		trace.WithSpanKind(trace.SpanKindClient),
 	)
 	clientSpan.SetAttributes(
-		attribute.String("peer.service", event.Destination),
+		attribute.String("peer.service", resoledNameD),
 	)
 	clientSpan.End()
 

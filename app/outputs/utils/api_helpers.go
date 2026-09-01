@@ -103,6 +103,46 @@ func InitResolver(ctx context.Context, client kubernetes.Interface) (*PodResolve
 	return globalResolver, err
 }
 
+func ResolveIP(ip string) (podName string, podNs string, err error) {
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		kubeconfig := os.Getenv("KUBECONFIG")
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", "", err
+	}
+
+	svcList, err := clientset.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, svc := range svcList.Items {
+		if string(svc.Spec.ClusterIP) == ip {
+			return svc.Name, svc.Namespace, nil
+		}
+	}
+	podList, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return "", "", err
+	}
+	for _, pod := range podList.Items {
+		if string(pod.Status.HostIP) == ip {
+			return pod.Name, pod.Namespace, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("no pod or service found matching %s", ip)
+
+}
+
 func (o Output[T]) GetPod() (podName string, podNS string, err error) {
 	var PID string
 	var ParentPID string
