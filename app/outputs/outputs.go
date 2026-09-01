@@ -109,6 +109,7 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	resoledName, ns, err := utils.ResolveIP(event.Source)
 	if err != nil {
 		resoledName = event.Source
+		log.Warn(err.Error())
 	} else {
 		resoledName = fmt.Sprintf("%s.%s", resoledName, ns)
 	}
@@ -116,10 +117,12 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 		resource.WithAttributes(semconv.ServiceNameKey.String(resoledName)),
 	)
 	if err != nil {
+		log.Warn(err.Error())
 		return
 	}
 	resoledNameD, nsD, err := utils.ResolveIP(event.Destination)
 	if err != nil {
+		log.Warn(err.Error())
 		resoledNameD = event.Destination
 	} else {
 		resoledNameD = fmt.Sprintf("%s.%s", resoledNameD, nsD)
@@ -128,6 +131,7 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 		resource.WithAttributes(semconv.ServiceNameKey.String(resoledNameD)),
 	)
 	if err != nil {
+		log.Warn(err.Error())
 		return
 	}
 	srcTP := sdktrace.NewTracerProvider(
