@@ -93,12 +93,10 @@ func NewLokiPayload[T utils.EventData](octagonData utils.Output[T]) error {
 func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	event := utils.NetworkEvent(octoEvent.Data)
 	ctx := context.Background()
-
 	tempoHost := os.Getenv("TEMPO_HOST")
 	if tempoHost == "" {
 		tempoHost = "tempo.monitoring.svc.cluster.local:4318"
 	}
-
 	exporter, err := otlptracehttp.New(ctx,
 		otlptracehttp.WithEndpoint(tempoHost),
 		otlptracehttp.WithInsecure(),
@@ -106,7 +104,6 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	if err != nil {
 		return
 	}
-
 	// Two resources, one per IP, so src and dest end up as different
 	// service.name values on their respective spans.
 	resoledName, ns, err := utils.ResolveIP(event.Source)
@@ -125,7 +122,7 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	if err != nil {
 		resoledNameD = event.Destination
 	} else {
-		resoledNameD = fmt.Sprintf("%s.%s", resoledName, nsD)
+		resoledNameD = fmt.Sprintf("%s.%s", resoledNameD, nsD)
 	}
 	dstRes, err := resource.New(ctx,
 		resource.WithAttributes(semconv.ServiceNameKey.String(resoledNameD)),
@@ -133,7 +130,6 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	if err != nil {
 		return
 	}
-
 	srcTP := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(srcRes),
@@ -144,7 +140,6 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 	)
 	defer srcTP.Shutdown(ctx)
 	defer dstTP.Shutdown(ctx)
-
 	// Client span: source IP making the call.
 	clientCtx, clientSpan := srcTP.Tracer("octagon-force-network").Start(ctx, event.EventType,
 		trace.WithSpanKind(trace.SpanKindClient),
@@ -153,7 +148,6 @@ func NetworkTraceLog[T utils.NetworkEvent](octoEvent utils.Output[T]) {
 		attribute.String("peer.service", resoledNameD),
 	)
 	clientSpan.End()
-
 	// Server span: child of the client span (same trace, parent_span_id
 	// set), but attributed to the destination IP. This src->dest parent-child
 	// link across two different service.name values is what SigNoz's
